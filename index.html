@@ -24,9 +24,9 @@
     <h1>Siler City<br>Fantasy Football</h1>
     <div class="hero-copy"><p>League standings, weekly scores, draft order, and eight seasons of history in one place.</p><span class="season-pill">2026 season</span></div>
   </header>
-  <nav><div class="shell"><button class="nav-btn active" data-view="home">Home</button><button class="nav-btn" data-view="matchups">Matchups</button><button class="nav-btn" data-view="standings">Standings</button><button class="nav-btn" data-view="draft">Draft order</button><button class="nav-btn" data-view="history">History</button></div></nav>
+  <nav><div class="shell"><button class="nav-btn active" data-view="standings">Standings</button><button class="nav-btn" data-view="matchups">Matchups</button><button class="nav-btn" data-view="home">Home</button><button class="nav-btn" data-view="draft">Draft order</button><button class="nav-btn" data-view="history">History</button></div></nav>
   <main class="shell">
-    <section id="home" class="view active">
+    <section id="home" class="view">
       <div class="section-head"><div><p class="eyebrow">League headquarters</p><h2>Week 3 complete</h2></div><p>2026 season · results through Week 3</p></div>
       <div class="grid">
         <article class="card"><div class="card-pad"><span class="kicker">Current season</span><h3>Strive 4 Mediocrity leads</h3><p class="muted">The only unbeaten team after three weeks, with Wood and Big D close behind at 2–1.</p><div class="status"><div class="stat"><b id="teamCount">10</b><span>teams</span></div><div class="stat"><b>3</b><span>weeks complete</span></div><div class="stat"><b>3–0</b><span>best record</span></div></div></div></article>
@@ -36,7 +36,7 @@
       </div>
     </section>
     <section id="matchups" class="view"><div class="section-head"><div><p class="eyebrow">2026 scoreboard</p><h2>Weekly matchups</h2></div><p>Final results</p></div><div class="week-btns year-row" id="matchupWeeks"></div><article class="card match-list" id="matchupList"></article></section>
-    <section id="standings" class="view"><div class="section-head"><div><p class="eyebrow">Season table</p><h2>Standings</h2></div><p id="standingNote">2026 results through Week 3</p></div><div class="year-row" id="standingYears"></div><article class="card table-wrap"><table class="standings"><thead><tr><th>Rank</th><th>Team</th><th>Record</th><th>PF</th><th>Avg</th><th>Adjusted</th><th>Point record</th></tr></thead><tbody id="standingsBody"></tbody></table></article></section>
+    <section id="standings" class="view active"><div class="section-head"><div><p class="eyebrow">Season table</p><h2>Standings</h2></div><p id="standingNote">2026 results through Week 3</p></div><div class="year-row" id="standingYears"></div><article class="card table-wrap"><table class="standings"><thead><tr><th>Rank</th><th>Team</th><th>Record</th><th>PF</th><th>Avg</th><th>Adjusted</th><th>Point record</th></tr></thead><tbody id="standingsBody"></tbody></table></article></section>
     <section id="draft" class="view"><div class="section-head"><div><p class="eyebrow">Next up</p><h2>Draft order</h2></div><p>Carried forward from the workbook</p></div><article class="card"><div class="card-pad"><div class="draft" id="draftList"></div></div></article></section>
     <section id="history" class="view"><div class="section-head"><div><p class="eyebrow">League archive</p><h2>Season history</h2></div><p>2018–2025</p></div><div class="year-row" id="historyYears"></div><div class="grid"><article class="card champion"><span class="kicker" id="historyYearLabel"></span><strong id="historyWinner"></strong><p class="muted" id="historyMeta"></p></article><article class="card"><div class="card-pad"><span class="kicker">Top five</span><ol class="rank-list" id="historyTop"></ol></div></article></div></section>
   </main>
