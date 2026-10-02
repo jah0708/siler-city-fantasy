@@ -94,31 +94,20 @@ def api(path: str, token: str) -> dict:
 
 
 def find_league(token: str) -> tuple[str, str, int]:
-    data = api("users;use_login=1/games;game_codes=nfl/leagues", token)
-    candidates = []
-    for entity in containers(data, "league"):
-        league_key = first_value(entity, "league_key")
-        league_id = str(first_value(entity, "league_id") or "")
-        if not league_key:
-            continue
-        candidates.append(
-            (
-                str(league_key),
-                league_id,
-                str(first_value(entity, "name") or "Yahoo Fantasy League"),
-                int(number(first_value(entity, "season"), 0)),
-            )
-        )
     wanted_id = os.getenv("YAHOO_LEAGUE_ID", "844486")
     wanted_season = int(os.getenv("YAHOO_SEASON", str(datetime.now(timezone.utc).year)))
-    matches = [item for item in candidates if item[1] == wanted_id and item[3] == wanted_season]
-    if not matches:
-        matches = [item for item in candidates if item[1] == wanted_id]
-    if not matches:
-        available = ", ".join(f"{x[1]} ({x[3]})" for x in candidates) or "none"
-        raise RuntimeError(f"League {wanted_id} was not found. Available leagues: {available}")
-    league_key, _, name, season = max(matches, key=lambda item: item[3])
-    return league_key, name, season
+    # Resolve the season's NFL game key without using the user collection. This
+    # is both faster and avoids Yahoo's more restrictive identity endpoint.
+    data = api(f"games;game_codes=nfl;seasons={wanted_season}", token)
+    game_keys = []
+    for entity in containers(data, "game"):
+        game_key = first_value(entity, "game_key")
+        season = int(number(first_value(entity, "season"), 0))
+        if game_key and season == wanted_season:
+            game_keys.append(str(game_key))
+    if not game_keys:
+        raise RuntimeError(f"Yahoo did not return an NFL game key for {wanted_season}")
+    return f"{game_keys[0]}.l.{wanted_id}", "Siler City Fantasy League", wanted_season
 
 
 def league_meta(token: str, league_key: str) -> dict:
