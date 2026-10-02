@@ -1,0 +1,40 @@
+name: Update Yahoo fantasy results
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 12 * * 2"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yahoo-fantasy-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch Yahoo results
+        env:
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+          YAHOO_LEAGUE_ID: "844486"
+        run: python scripts/update_from_yahoo.py
+      - name: Publish updated data
+        run: |
+          if git diff --quiet; then
+            echo "Yahoo data is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Yahoo fantasy results"
+          git push
