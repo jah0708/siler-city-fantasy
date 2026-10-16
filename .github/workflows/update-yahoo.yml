@@ -63,6 +63,7 @@ jobs:
           YAHOO_LEAGUE_ID: '844486'
         run: python scripts/update_from_yahoo.py
       - name: Publish encrypted changes only
+        if: always()
         run: |
           # Refuse to stage plaintext league data or arbitrary generated files.
           if [ -e data/league-data.json ] || [ -e data/yahoo.json ]; then
@@ -72,6 +73,9 @@ jobs:
           git add index.html
           if [ -f data/league-data.enc.json ]; then
             git add data/league-data.enc.json
+          fi
+          if [ -f .github/yahoo-oauth.enc.json ]; then
+            git add .github/yahoo-oauth.enc.json
           fi
           if git diff --cached --quiet; then
             echo "League information unchanged."

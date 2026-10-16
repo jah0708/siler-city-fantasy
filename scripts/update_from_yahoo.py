@@ -15,6 +15,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from secure_site import ENCRYPTED, INDEX, load_records, store_records
+from yahoo_token import select_refresh_token, persist_refresh_token
 
 API_ROOT = "https://fantasysports.yahooapis.com/fantasy/v2"
 REDIRECT_URI = "https://jah0708.github.io/siler-city-fantasy/"
@@ -98,12 +99,16 @@ def refresh_access_token() -> str:
     response = request_json("https://api.login.yahoo.com/oauth2/get_token", data={
         "client_id": os.environ["YAHOO_CLIENT_ID"],
         "client_secret": os.environ["YAHOO_CLIENT_SECRET"],
-        "refresh_token": os.environ["YAHOO_REFRESH_TOKEN"],
+        "refresh_token": select_refresh_token(os.environ["YAHOO_CLIENT_SECRET"], os.environ["YAHOO_REFRESH_TOKEN"]),
         "redirect_uri": REDIRECT_URI,
         "grant_type": "refresh_token",
     })
     if not response.get("access_token"):
         raise RuntimeError("Yahoo OAuth refresh returned no access token")
+    current_token = select_refresh_token(os.environ["YAHOO_CLIENT_SECRET"], os.environ["YAHOO_REFRESH_TOKEN"])
+    rotated = response.get("refresh_token") or current_token
+    if persist_refresh_token(os.environ["YAHOO_CLIENT_SECRET"], os.environ["YAHOO_REFRESH_TOKEN"], rotated):
+        print("Yahoo OAuth refresh-token state safely updated in encrypted form.")
     return response["access_token"]
 
 
