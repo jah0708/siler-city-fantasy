@@ -2,6 +2,12 @@ name: Update Yahoo fantasy results (encrypted)
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['main']
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/update-yahoo.yml'
   schedule:
     - cron: '23 */3 * * *'
   pull_request:
