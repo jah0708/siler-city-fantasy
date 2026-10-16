@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from secrets import token_bytes
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +53,7 @@ def _read_state(client_secret: str) -> dict | None:
         if not isinstance(state.get("token"), str) or not isinstance(state.get("seed_fingerprint"), str):
             raise ValueError("Invalid token-state data")
         return state
-    except (KeyError, ValueError, TypeError) as exc:
+    except (KeyError, ValueError, TypeError, InvalidTag) as exc:
         raise RuntimeError(
             "Stored Yahoo refresh-token state cannot be decrypted with YAHOO_CLIENT_SECRET. "
             "Review GitHub secrets before syncing."
