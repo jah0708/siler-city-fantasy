@@ -227,6 +227,12 @@ def main() -> int:
         raise RuntimeError(
             "Set SCFL_SITE_PASSWORD (20+ characters) in GitHub Actions secrets; no data published"
         )
+    # Protect the existing league records as soon as the site password is supplied.
+    # This does not require Yahoo to finish provisioning API access.
+    if not ENCRYPTED.exists() or 'id="unlockPanel"' not in INDEX.read_text(encoding="utf-8"):
+        previous = load_records(password)
+        store_records(previous, password)
+        print("Encrypted historical league records; site is ready for private access.")
     try:
         token = refresh_access_token()
         key, season = find_league(token)
