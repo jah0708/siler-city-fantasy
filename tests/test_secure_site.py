@@ -103,6 +103,36 @@ class YahooTests(unittest.TestCase):
         self.assertEqual(err.code, 403)
         self.assertIn("not authorized", err.description.lower())
 
+    def test_invalid_refresh_token_does_not_block_encrypted_site_bootstrap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            index = Path(tmp) / "index.html"
+            index.write_text("<!doctype html>not yet protected", encoding="utf-8")
+            encrypted = Path(tmp) / "data" / "league-data.enc.json"
+            with patch.dict("os.environ", {"SCFL_SITE_PASSWORD": PASSWORD}), \
+                patch.object(yahoo, "INDEX", index), \
+                patch.object(yahoo, "ENCRYPTED", encrypted), \
+                patch.object(yahoo, "load_records", return_value={"seasons": {"2018": [{}]}, "currentStandings": [{}]}), \
+                patch.object(yahoo, "store_records") as store, \
+                patch.object(yahoo, "refresh_access_token", side_effect=yahoo.YahooError(400, "Invalid refresh token")):
+                self.assertEqual(yahoo.main(), 0)
+                store.assert_called_once()
+
+    def test_unexpected_yahoo_oauth_error_remains_fatal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            index = Path(tmp) / "index.html"
+            index.write_text("<!doctype html>not yet protected", encoding="utf-8")
+            encrypted = Path(tmp) / "data" / "league-data.enc.json"
+            with patch.dict("os.environ", {"SCFL_SITE_PASSWORD": PASSWORD}), \
+                patch.object(yahoo, "INDEX", index), \
+                patch.object(yahoo, "ENCRYPTED", encrypted), \
+                patch.object(yahoo, "load_records", return_value={"seasons": {"2018": [{}]}, "currentStandings": [{}]}), \
+                patch.object(yahoo, "store_records") as store, \
+                patch.object(yahoo, "refresh_access_token", side_effect=yahoo.YahooError(400, "Unknown Yahoo error")):
+                with self.assertRaises(yahoo.YahooError):
+                    yahoo.main()
+                store.assert_called_once()
+
+
 
 if __name__ == "__main__":
     unittest.main()
