@@ -240,7 +240,10 @@ def main() -> int:
         week, standings, matchups = standings_and_scores(token, key, current, end)
     except YahooError as exc:
         if exc.code == 403 and "not authorized" in exc.description.lower():
-            print("::notice::Yahoo access not provisioned yet; will retry at next schedule.")
+            print("::notice::Yahoo API access is still pending. Protected site is published; next sync will retry.")
+            return 0
+        if exc.code == 400 and "invalid refresh token" in exc.description.lower():
+            print("::warning::Yahoo OAuth refresh token is invalid. Protected historic site will publish, but live Yahoo scores cannot import until YAHOO_REFRESH_TOKEN is renewed.")
             return 0
         raise
     database = load_records(password)
