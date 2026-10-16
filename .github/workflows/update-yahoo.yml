@@ -1,40 +1,77 @@
-name: Update Yahoo fantasy results
+name: Update Yahoo fantasy results (encrypted)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 12 * * 2"
+    - cron: '23 */3 * * *'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/update-yahoo.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: yahoo-fantasy-update
   cancel-in-progress: false
 
 jobs:
-  update:
+  tests:
+    name: Unit tests and privacy checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Fetch Yahoo results
+          python-version: '3.12'
+      - name: Install cryptography
+        run: python -m pip install 'cryptography==46.0.4'
+      - name: Verify encryption, safe handling and scoring
+        run: python -m unittest discover -s tests -v
+
+  update:
+    name: Fetch and publish encrypted league data
+    needs: tests
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cryptography
+        run: python -m pip install 'cryptography==46.0.4'
+      - name: Fetch Yahoo scores and encrypt site
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
-          YAHOO_LEAGUE_ID: "844486"
+          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          YAHOO_LEAGUE_ID: '844486'
         run: python scripts/update_from_yahoo.py
-      - name: Publish updated data
+      - name: Publish encrypted changes only
         run: |
-          if git diff --quiet; then
-            echo "Yahoo data is already current."
+          # Refuse to stage plaintext league data or arbitrary generated files.
+          if [ -e data/league-data.json ] || [ -e data/yahoo.json ]; then
+            echo "::error::Unencrypted Yahoo data found; refusing to publish."
+            exit 1
+          fi
+          git add index.html
+          if [ -f data/league-data.enc.json ]; then
+            git add data/league-data.enc.json
+          fi
+          if git diff --cached --quiet; then
+            echo "League information unchanged."
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git commit -m "Update Yahoo fantasy results"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Refresh encrypted Yahoo league records'
           git push
