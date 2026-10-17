@@ -113,6 +113,7 @@ class YahooTests(unittest.TestCase):
                 patch.object(yahoo, "ENCRYPTED", encrypted), \
                 patch.object(yahoo, "load_records", return_value={"seasons": {"2018": [{}]}, "currentStandings": [{}]}), \
                 patch.object(yahoo, "store_records") as store, \
+                patch.object(yahoo, "apply_manual_fallback", return_value=False), \
                 patch.object(yahoo, "refresh_access_token", side_effect=yahoo.YahooError(400, "Invalid refresh token")):
                 self.assertEqual(yahoo.main(), 0)
                 store.assert_called_once()
@@ -127,6 +128,7 @@ class YahooTests(unittest.TestCase):
                 patch.object(yahoo, "ENCRYPTED", encrypted), \
                 patch.object(yahoo, "load_records", return_value={"seasons": {"2018": [{}]}, "currentStandings": [{}]}), \
                 patch.object(yahoo, "store_records") as store, \
+                patch.object(yahoo, "apply_manual_fallback", return_value=False), \
                 patch.object(yahoo, "refresh_access_token", side_effect=yahoo.YahooError(400, "Unknown Yahoo error")):
                 with self.assertRaises(yahoo.YahooError):
                     yahoo.main()
