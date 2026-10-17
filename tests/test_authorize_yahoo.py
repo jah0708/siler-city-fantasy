@@ -47,6 +47,26 @@ class OAuthAuthorizationTests(unittest.TestCase):
                 authorize_yahoo.main()
             persist.assert_not_called()
 
+    def test_full_mobile_callback_url_can_be_used(self):
+        env = {**ENV, "YAHOO_AUTH_CODE":
+            "https://jah0708.github.io/siler-city-fantasy/?code=fresh-code&state=test"}
+        with patch.dict(os.environ, env), \
+             patch.object(authorize_yahoo, "request_json", return_value={
+                 "refresh_token": "new-refresh"
+             }) as request, \
+             patch.object(authorize_yahoo, "persist_refresh_token"):
+            authorize_yahoo.main()
+            self.assertEqual(request.call_args.kwargs["data"]["code"], "fresh-code")
+
+    def test_callback_must_match_registered_redirect(self):
+        env = {**ENV, "YAHOO_AUTH_CODE": "https://other.example/?code=do-not-use"}
+        with patch.dict(os.environ, env), \
+             patch.object(authorize_yahoo, "request_json") as request:
+            with self.assertRaisesRegex(RuntimeError, "not the configured"):
+                authorize_yahoo.main()
+            request.assert_not_called()
+
+
 
 if __name__ == "__main__":
     unittest.main()
