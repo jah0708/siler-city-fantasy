@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 from secrets import token_bytes
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -82,7 +83,7 @@ def validate_private_key(password: str) -> x25519.X25519PrivateKey:
         if private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw) != dec(public_data["public_key"]):
             raise ValueError("Fallback private/public keys disagree")
         return private
-    except (OSError, KeyError, ValueError, TypeError) as exc:
+    except (OSError, KeyError, ValueError, TypeError, InvalidTag) as exc:
         raise RuntimeError("Could not unlock private manual-fallback key with the site password") from exc
 
 
