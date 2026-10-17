@@ -1,0 +1,61 @@
+name: Authorize Yahoo OAuth (one-time)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yahoo-fantasy-update
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install cryptography
+        run: python -m pip install 'cryptography==46.0.4'
+      - name: Exchange one-time Yahoo authorization code
+        env:
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+          YAHOO_AUTH_CODE: ${{ secrets.YAHOO_AUTH_CODE }}
+        run: python scripts/authorize_yahoo.py
+      - name: Try importing live scores
+        env:
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          YAHOO_LEAGUE_ID: '844486'
+        run: |
+          if ! python scripts/update_from_yahoo.py; then
+            echo "::warning::Yahoo live-data sync did not complete yet; refreshed OAuth token will still be saved."
+          fi
+      - name: Save encrypted OAuth token and league data
+        run: |
+          test -f .github/yahoo-oauth.enc.json || { echo "::error::Yahoo token encryption file missing"; exit 1; }
+          if [ -e data/league-data.json ] || [ -e data/yahoo.json ]; then
+            echo "::error::Refusing to stage plaintext league data."
+            exit 1
+          fi
+          git add .github/yahoo-oauth.enc.json
+          if [ -f data/league-data.enc.json ]; then
+            git add data/league-data.enc.json
+          fi
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "OAuth state and scores were already saved."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Save renewed Yahoo authorization and encrypted league data'
+          git push
