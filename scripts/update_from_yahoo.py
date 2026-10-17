@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 from secure_site import ENCRYPTED, INDEX, load_records, store_records
 from yahoo_token import select_refresh_token, persist_refresh_token
+from manual_fallback import apply_manual_fallback
 
 API_ROOT = "https://fantasysports.yahooapis.com/fantasy/v2"
 REDIRECT_URI = "https://jah0708.github.io/siler-city-fantasy/"
@@ -238,6 +239,7 @@ def main() -> int:
         previous = load_records(password)
         store_records(previous, password)
         print("Encrypted historical league records; site is ready for private access.")
+    apply_manual_fallback(password)
     try:
         token = refresh_access_token()
         key, season = find_league(token)
@@ -252,6 +254,11 @@ def main() -> int:
             return 0
         raise
     database = load_records(password)
+    # Manual Week 5 results remain visible until the API catches up; never regress.
+    recorded = int(database.get("yahoo", {}).get("week", 0))
+    if week < recorded:
+        print(f"::notice::Yahoo returned Week {week}; preserving existing Week {recorded} snapshot.")
+        return 0
     same = (
         database.get("currentSeason") == str(season)
         and database.get("currentStandings") == standings
@@ -267,6 +274,7 @@ def main() -> int:
         "currentStandings": standings,
         "matchups": matchups,
         "yahoo": {
+            "source": "live",
             "leagueName": name,
             "lastUpdated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "week": week,
