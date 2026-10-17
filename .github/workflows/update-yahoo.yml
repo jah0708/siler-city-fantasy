@@ -7,6 +7,7 @@ on:
     paths:
       - 'scripts/**'
       - 'tests/**'
+      - 'data/manual-fallback.enc.json'
       - '.github/workflows/update-yahoo.yml'
   schedule:
     - cron: '23 */3 * * *'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'scripts/**'
       - 'tests/**'
+      - 'data/manual-fallback.enc.json'
       - '.github/workflows/update-yahoo.yml'
 
 permissions:
@@ -54,6 +56,10 @@ jobs:
           python-version: '3.12'
       - name: Install cryptography
         run: python -m pip install 'cryptography==46.0.4'
+      - name: Prepare encrypted manual fallback key
+        env:
+          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+        run: python scripts/manual_fallback.py bootstrap
       - name: Fetch Yahoo scores and encrypt site
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
@@ -71,6 +77,9 @@ jobs:
             exit 1
           fi
           git add index.html
+          if [ -f .github/fallback-public-key.json ]; then
+            git add .github/fallback-public-key.json .github/fallback-key.enc.json
+          fi
           if [ -f data/league-data.enc.json ]; then
             git add data/league-data.enc.json
           fi
