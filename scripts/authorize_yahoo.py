@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import sys
 
+from urllib.parse import parse_qs, urlparse
+
 from yahoo_token import persist_refresh_token
 from update_from_yahoo import REDIRECT_URI, request_json
 
@@ -20,6 +22,20 @@ def main() -> None:
     if missing:
         raise RuntimeError("Required GitHub secret(s) not configured: " + ", ".join(missing))
 
+    # On a phone, copying the entire Yahoo callback URL is easier than editing it.
+    # Accept either the bare short-lived authorization code or the exact callback URL.
+    authorization_code = os.environ["YAHOO_AUTH_CODE"].strip()
+    if authorization_code.startswith("https://"):
+        callback = urlparse(authorization_code)
+        registered = urlparse(REDIRECT_URI)
+        if (callback.scheme, callback.netloc, callback.path) != (
+            registered.scheme, registered.netloc, registered.path
+        ):
+            raise RuntimeError("Authorization URL is not the configured Yahoo callback")
+        codes = parse_qs(callback.query).get("code", [])
+        if len(codes) != 1 or not codes[0]:
+            raise RuntimeError("Yahoo callback URL does not contain an authorization code")
+        authorization_code = codes[0]
     result = request_json(
         "https://api.login.yahoo.com/oauth2/get_token",
         data={
@@ -27,7 +43,7 @@ def main() -> None:
             "client_secret": os.environ["YAHOO_CLIENT_SECRET"],
             "redirect_uri": REDIRECT_URI,
             "grant_type": "authorization_code",
-            "code": os.environ["YAHOO_AUTH_CODE"].strip(),
+            "code": authorization_code,
         },
     )
     fresh = result.get("refresh_token")
