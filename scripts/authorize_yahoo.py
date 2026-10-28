@@ -53,6 +53,7 @@ def main() -> None:
         os.environ["YAHOO_CLIENT_SECRET"],
         os.environ["YAHOO_REFRESH_TOKEN"],
         fresh,
+        replace_existing=True,
     )
     print("Yahoo reauthorization succeeded; replacement refresh token stored encrypted.")
     print("::notice::Remove the one-time YAHOO_AUTH_CODE Actions secret; it is no longer needed.")
@@ -69,3 +70,4 @@ if __name__ == "__main__":
             file=sys.stderr,
         )
         raise SystemExit(1) from exc
+
