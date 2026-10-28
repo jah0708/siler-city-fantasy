@@ -1,6 +1,7 @@
 """Regression tests for the one-time Yahoo OAuth authorization-code workflow."""
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -8,6 +9,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import authorize_yahoo
+import yahoo_token
 
 
 ENV = {
@@ -30,7 +32,41 @@ class OAuthAuthorizationTests(unittest.TestCase):
             self.assertEqual(data["grant_type"], "authorization_code")
             self.assertEqual(data["code"], ENV["YAHOO_AUTH_CODE"])
             self.assertEqual(data["redirect_uri"], authorize_yahoo.REDIRECT_URI)
-            persist.assert_called_once_with("secret", "old-token", "new-refresh")
+            persist.assert_called_once_with(
+                "secret", "old-token", "new-refresh", replace_existing=True
+            )
+
+    def test_new_app_authorization_replaces_old_app_encryption(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "token.enc.json"
+            with patch.object(yahoo_token, "STATE_PATH", target):
+                yahoo_token.persist_refresh_token("old-app-secret", "old-token", "old-refresh")
+                with patch.dict(os.environ, ENV), \
+                     patch.object(authorize_yahoo, "request_json", return_value={
+                         "access_token": "access", "refresh_token": "new-refresh"
+                     }):
+                    authorize_yahoo.main()
+                self.assertEqual(
+                    yahoo_token.select_refresh_token("secret", "old-token"), "new-refresh"
+                )
+                with self.assertRaises(RuntimeError):
+                    yahoo_token.select_refresh_token("old-app-secret", "old-token")
+                self.assertNotIn("new-refresh", target.read_text(encoding="utf-8"))
+
+    def test_failed_new_app_authorization_preserves_saved_token(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "token.enc.json"
+            with patch.object(yahoo_token, "STATE_PATH", target):
+                yahoo_token.persist_refresh_token("old-app-secret", "old-token", "old-refresh")
+                before = target.read_bytes()
+                with patch.dict(os.environ, ENV), \
+                     patch.object(authorize_yahoo, "request_json", side_effect=RuntimeError("Rejected grant")):
+                    with self.assertRaisesRegex(RuntimeError, "Rejected grant"):
+                        authorize_yahoo.main()
+                self.assertEqual(target.read_bytes(), before)
+                self.assertEqual(
+                    yahoo_token.select_refresh_token("old-app-secret", "old-token"), "old-refresh"
+                )
 
     def test_missing_code_never_calls_yahoo(self):
         with patch.dict(os.environ, {**ENV, "YAHOO_AUTH_CODE": ""}), \
@@ -70,3 +106,4 @@ class OAuthAuthorizationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

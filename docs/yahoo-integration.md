@@ -1,4 +1,4 @@
-# Siler City Fantasy — Yahoo API automated updates
+# Siler City Fantasy - Yahoo API automated updates
 
 Uses existing GitHub Pages and GitHub Actions only. No Supabase, new server or Vercel deployment.
 
@@ -16,6 +16,16 @@ Uses existing GitHub Pages and GitHub Actions only. No Supabase, new server or V
 4. The first successful run encrypts the legacy commissioner data and installs the unlock page *before* checking Yahoo, whether Yahoo access has been enabled or not.
 5. After Yahoo authorization is enabled, the next scheduled run imports and encrypts validated ten-team scoreboard results automatically.
 
+## Replacing the Yahoo app (SCFLv2)
+Yahoo requires a new app registration to enable the approved Fantasy Sports permission.
+Keep the registered callback exactly `https://jah0708.github.io/siler-city-fantasy/`.
+
+1. Replace the repository's `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET` Actions secrets with the new app credentials. Do not put them in the website or repository source.
+2. Authorize the new app for Fantasy Sports read access and store the short-lived authorization code in the `YAHOO_AUTH_CODE` Actions secret.
+3. Run **Authorize Yahoo OAuth (one-time)** on `main` immediately. Leave `YAHOO_REFRESH_TOKEN` configured: it remains the seed identifying the encrypted token chain, while the newly issued refresh token is stored encrypted and used for subsequent syncs.
+4. A successful authorization-code exchange replaces the old app's encrypted token state using the new client secret. Failed exchanges leave the old state intact. Ordinary scheduled refreshes never bypass decryption errors.
+5. Remove the consumed `YAHOO_AUTH_CODE` secret. Check the import logs for a completed ten-team live update; a green workflow can also mean Yahoo provisioning is still pending.
+
 ## Security and limits
 - The website shell is public GitHub Pages, but the actual league records are ciphertext. Members enter a shared password to decrypt in their browser.
 - There is no individual account management or server-side authentication. Use a strong password because public ciphertext can be attacked offline.
@@ -27,3 +37,4 @@ Uses existing GitHub Pages and GitHub Actions only. No Supabase, new server or V
 
 ## Test locally
 Install cryptography==46.0.4 and run: python -m unittest discover -s tests -v
+

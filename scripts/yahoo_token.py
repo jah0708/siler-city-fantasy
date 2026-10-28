@@ -72,12 +72,19 @@ def select_refresh_token(client_secret: str, seed_token: str) -> str:
     return state["token"]
 
 
-def persist_refresh_token(client_secret: str, seed_token: str, latest_token: str) -> bool:
-    """Return True if a new encrypted state file was written."""
+def persist_refresh_token(
+    client_secret: str, seed_token: str, latest_token: str, *, replace_existing: bool = False
+) -> bool:
+    """Save a token, replacing a prior app's state only after a fresh OAuth grant.
+
+    Ordinary refreshes must still fail closed if the stored state cannot be
+    decrypted. A successful authorization-code exchange can explicitly start a
+    new chain, including when Yahoo requires a new app and client secret.
+    """
     if not latest_token:
         raise ValueError("Cannot store an empty Yahoo refresh token")
     seed_fingerprint = _fingerprint(seed_token)
-    state = _read_state(client_secret)
+    state = None if replace_existing else _read_state(client_secret)
     if state and state == {"token": latest_token, "seed_fingerprint": seed_fingerprint}:
         return False
     raw = json.dumps(
@@ -92,3 +99,4 @@ def persist_refresh_token(client_secret: str, seed_token: str, latest_token: str
     temporary.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
     os.replace(temporary, STATE_PATH)
     return True
+

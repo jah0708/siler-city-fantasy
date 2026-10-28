@@ -52,6 +52,27 @@ class RotatingRefreshTokenTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     yahoo_token.select_refresh_token("secret-A", "seed")
 
+    def test_regular_refresh_cannot_overwrite_another_apps_state(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "token.enc.json"
+            with patch.object(yahoo_token, "STATE_PATH", target):
+                yahoo_token.persist_refresh_token("secret-A", "seed", "old-token")
+                before = target.read_bytes()
+                with self.assertRaises(RuntimeError):
+                    yahoo_token.persist_refresh_token("secret-B", "seed", "new-token")
+                self.assertEqual(target.read_bytes(), before)
+
+    def test_empty_reauthorization_token_cannot_replace_saved_state(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "token.enc.json"
+            with patch.object(yahoo_token, "STATE_PATH", target):
+                yahoo_token.persist_refresh_token("secret-A", "seed", "old-token")
+                before = target.read_bytes()
+                with self.assertRaises(ValueError):
+                    yahoo_token.persist_refresh_token("secret-B", "seed", "", replace_existing=True)
+                self.assertEqual(target.read_bytes(), before)
+
 
 if __name__ == "__main__":
     unittest.main()
+
