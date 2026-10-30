@@ -8,6 +8,7 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - 'data/manual-fallback.enc.json'
+      - 'data/manual-week-5-7.enc.json'
       - '.github/workflows/update-yahoo.yml'
   schedule:
     - cron: '23 */3 * * *'
@@ -16,6 +17,7 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - 'data/manual-fallback.enc.json'
+      - 'data/manual-week-5-7.enc.json'
       - '.github/workflows/update-yahoo.yml'
 
 permissions:
