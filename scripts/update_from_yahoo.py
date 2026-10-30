@@ -254,7 +254,7 @@ def main() -> int:
             return 0
         raise
     database = load_records(password)
-    # Manual Week 5 results remain visible until the API catches up; never regress.
+    # Preserve the latest encrypted manual week until verified Yahoo scores catch up.
     recorded = int(database.get("yahoo", {}).get("week", 0))
     if week < recorded:
         print(f"::notice::Yahoo returned Week {week}; preserving existing Week {recorded} snapshot.")
