@@ -1,24 +1,13 @@
-# Manual-score backup while Yahoo Fantasy API is unavailable
+# Encrypted manual-score backup while Yahoo Fantasy API is unavailable
 
-- The static encrypted league snapshot always remains available on GitHub Pages.
-- The October 16 screenshot scores for Weeks 4 and 5 are stored only in data/manual-fallback.enc.json (X25519 + AES-256-GCM ciphertext).
-  Its plaintext is never committed to this public repository.
-- GitHub Actions holds the shared league password in SCFL_SITE_PASSWORD.
-  The first main-branch run generates a stable X25519 keypair:
-  .github/fallback-public-key.json (public encryption key) and
-  .github/fallback-key.enc.json (private key encrypted with the password).
-- The manual fallback file is encrypted to that public key, so it can be
-  committed safely without knowing or exposing the league password.
-- The importer decrypts the fallback only on the trusted GitHub Actions runner,
-  validates ten teams and five matchups per week, and rebuilds the regular-season
-  point and head-to-head records from Weeks 1–5. It then writes the entire
-  snapshot to the existing password-encrypted data/league-data.enc.json.
-- The manual record is labeled clearly in the website as manual while Yahoo is
-  pending. Yahoo import runs automatically every three hours.
-- The saved manual Week 5 snapshot wins over incomplete Yahoo weeks (1–4).
-  A valid Yahoo week 5 or later supersedes it; no manual records disappear
-  during an API outage.
-- Neither the public HTML nor the repository exposes the unencrypted scores.
-- If the site password changes, use an explicit key rewrapping process; do not
-  delete the private-key file or generate a new key while an encrypted backup
-  is still in use.
+- GitHub Pages serves a password-encrypted league snapshot; no plaintext league scores are committed to the public repository.
+- Original October 16 Week 4–5 scores are stored in `data/manual-fallback.enc.json`.
+- The October 30 screenshots provide Week 5–7 final matchup scores, stored separately in `data/manual-week-5-7.enc.json`. Gray projected scores are excluded.
+- Both files are encrypted with X25519 + AES-256-GCM using the stable public key in `.github/fallback-public-key.json`. GitHub Actions holds the password-encrypted private key and `SCFL_SITE_PASSWORD` secret.
+- The trusted GitHub Actions runner decrypts both inputs, validates ten teams and five games per week, and merges them in chronological order. The newer Week 5 screenshot supersedes the earlier encrypted Week 5 record; Week 4 is retained from the original backup.
+- The updater rebuilds regular-season head-to-head records and top-five scoring records through Week 7, encrypts the complete league data with the member password, and updates `data/league-data.enc.json`.
+- A valid live Yahoo scoreboard replaces the manual scores once its completed week catches up. If Yahoo only supplies Weeks 1–6, those completed live scores are preserved, and Week 7 remains the manual fallback. No stored newer scores are downgraded.
+- The site identifies manually saved scores as such until Yahoo sync succeeds. Automatic refresh continues every three hours, with retries on subsequent runs.
+- The manual snapshots are intentionally retained as a backup during Yahoo outages. Only approved encrypted JSON files are published.
+
+To rotate the website password, use a deliberate key rewrapping procedure: do not delete the private-key file or generate a different key while an encrypted backup still depends on it.
