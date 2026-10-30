@@ -12,6 +12,7 @@ import base64
 import hashlib
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from secrets import token_bytes
 
@@ -28,6 +29,8 @@ from secure_site import ROOT, load_records, store_records
 PUBLIC_KEY = ROOT / ".github" / "fallback-public-key.json"
 PRIVATE_KEY = ROOT / ".github" / "fallback-key.enc.json"
 MANUAL_FILE = ROOT / "data" / "manual-fallback.enc.json"
+SUPPLEMENTAL_FILE = ROOT / "data" / "manual-week-5-7.enc.json"
+MANUAL_SOURCES = ((MANUAL_FILE, {"4", "5"}), (SUPPLEMENTAL_FILE, {"5", "6", "7"}))
 A_KEY = b"scfl-manual-private-v1"
 A_DATA = b"scfl-manual-score-data-v1"
 INFO = b"scfl-fallback-hkdf-v1"
@@ -178,50 +181,75 @@ def compute_standings(all_matchups: dict, names: set[str]) -> list[dict]:
 
 
 def apply_manual_fallback(password: str) -> bool:
-    """Use the static encrypted snapshot until Yahoo has at least this many weeks."""
-    if not MANUAL_FILE.exists():
+    """Apply all encrypted backups in order, without replacing newer live Yahoo data.
+
+    The original Week 4-5 ciphertext cannot be decrypted outside the trusted runner.
+    The separate Week 5-7 ciphertext intentionally supersedes its Week 5 results.
+    This retains the existing Week 4 backup and never commits plaintext scores.
+    """
+    available = [(path, weeks) for path, weeks in MANUAL_SOURCES if path.exists()]
+    if not available:
         return False
+
     private = validate_private_key(password)
-    ciphertext = MANUAL_FILE.read_bytes()
-    digest = hashlib.sha256(ciphertext).hexdigest()
-    manual = decrypt_manual_payload(private, json.loads(ciphertext))
-    weeks = manual.get("matchups")
-    if manual.get("season") != 2026 or set(weeks or {}) != {"4", "5"}:
-        raise ValueError("Only approved 2026 Week 4-5 manual fallback is allowed")
-    names = set()
     db = load_records(password)
     names = {team["name"] for team in db["currentStandings"]}
     if len(names) != 10:
         raise RuntimeError("Unrecognized legacy team roster")
-    validate_matchups(weeks, expected_names=names)
-    yahoo = db.get("yahoo", {})
-    yahoo_week = int(yahoo.get("week", 0))
-    is_live = yahoo.get("source") != "manual" and yahoo_week >= 5
-    if is_live:
-        print("Live Yahoo data includes Week 5; retained live scores over manual backup.")
+
+    manual_weeks = {}
+    encrypted_blobs = []
+    for path, expected_weeks in available:
+        raw = path.read_bytes()
+        manual = decrypt_manual_payload(private, json.loads(raw))
+        weeks = manual.get("matchups")
+        if manual.get("season") != 2026 or not isinstance(weeks, dict) or set(weeks) != expected_weeks:
+            raise ValueError(f"Unexpected 2026 manual fallback weeks in {path.name}")
+        validate_matchups(weeks, expected_names=names)
+        manual_weeks.update(weeks)  # Newest backup wins for overlapping weeks.
+        encrypted_blobs.append(raw)
+
+    latest_manual_week = max(map(int, manual_weeks))
+    yahoo = db.get("yahoo") or {}
+    recorded_week = int(yahoo.get("week", 0))
+    if recorded_week > latest_manual_week:
+        print(f"Week {recorded_week} is newer than saved Week {latest_manual_week}; backup not applied.")
         return False
-    if db.get("manualFallback", {}).get("fingerprint") == digest:
-        print("Static manual Week 4-5 fallback already present.")
+    if yahoo.get("source") == "live" and recorded_week >= latest_manual_week:
+        print(f"Live Yahoo scores through Week {recorded_week} supersede the manual backup.")
         return False
-    combined = dict(db.get("matchups", {}))
-    # Preserve any complete newer live weeks when they have already arrived.
-    for week, games in weeks.items():
-        if yahoo.get("source") != "manual" and int(week) <= yahoo_week:
-            continue
+
+    digest = hashlib.sha256(b"\\0".join(encrypted_blobs)).hexdigest()
+    if (db.get("manualFallback", {}).get("fingerprint") == digest
+            and yahoo.get("source") == "manual" and recorded_week == latest_manual_week):
+        print(f"Static manual Week {latest_manual_week} fallback already present.")
+        return False
+
+    combined = dict(db.get("matchups") or {})
+    for week, games in manual_weeks.items():
+        if yahoo.get("source") == "live" and int(week) <= recorded_week:
+            continue  # Trust verified live scores for weeks Yahoo has completed.
         combined[week] = games
-    if not all(str(i) in combined for i in range(1, 6)):
-        raise RuntimeError("Cannot calculate Week 5 standings without Weeks 1-3")
+    if not all(str(week) in combined for week in range(1, latest_manual_week + 1)):
+        raise RuntimeError(f"Cannot calculate Week {latest_manual_week} standings with missing weeks")
+    if any(int(week) > latest_manual_week for week in combined):
+        raise RuntimeError("Found a newer scoreboard; refusing to replace newer weeks")
+
     standings = compute_standings(combined, names)
     db["currentStandings"] = standings
     db["currentTeams"] = [row["name"] for row in standings]
     db["matchups"] = combined
-    db["yahoo"] = {"week": 5, "source": "manual", "lastUpdated": "2026-10-16",
-                   "label": "Saved Week 4–5 results (Yahoo connection pending)"}
-    db["manualFallback"] = {"fingerprint": digest, "weeks": [4, 5]}
+    db["yahoo"] = {
+        "week": latest_manual_week, "source": "manual",
+        "lastUpdated": datetime.now(timezone.utc).date().isoformat(),
+        "label": f"Saved Week 4–{latest_manual_week} results (Yahoo connection pending)",
+    }
+    db["manualFallback"] = {
+        "fingerprint": digest, "weeks": sorted(map(int, manual_weeks)),
+    }
     store_records(db, password)
-    print("Applied encrypted manual Week 4-5 backup and recalculated ten-team standings.")
+    print(f"Applied encrypted manual results through Week {latest_manual_week} and recalculated ten-team standings.")
     return True
-
 
 if __name__ == "__main__":
     import sys
