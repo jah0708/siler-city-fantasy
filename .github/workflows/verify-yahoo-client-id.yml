@@ -1,4 +1,4 @@
-name: Verify Yahoo client identity only
+name: Verify Yahoo configuration without API calls
 
 on:
   push:
@@ -10,15 +10,43 @@ permissions: {}
 jobs:
   compare:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
-      - name: Compare configured client ID without disclosing it
+      - name: Install existing project crypto dependency
+        run: python3 -m pip install 'cryptography==46.0.4'
+      - name: Check configuration without disclosing or changing credentials
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
         run: |
           python3 - <<'PY'
-          import hashlib, os
+          import hashlib, os, json, base64
+          from urllib.request import urlopen
+          from urllib.error import HTTPError
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          from cryptography.exceptions import InvalidTag
           value = os.environ.get("YAHOO_CLIENT_ID", "")
           expected = "9ac855a96e99624d22eb437cd18cae2e0d2e53593a83556aa831713e75f0639b"
           print("CLIENT_ID_MISSING" if not value else ("CLIENT_ID_MATCH" if hashlib.sha256(value.encode()).hexdigest() == expected else "CLIENT_ID_MISMATCH"))
+          secret = os.environ.get("YAHOO_CLIENT_SECRET", "")
+          seed = os.environ.get("YAHOO_REFRESH_TOKEN", "")
+          print("CLIENT_SECRET_PRESENT" if secret else "CLIENT_SECRET_MISSING")
+          print("REFRESH_TOKEN_PRESENT" if seed else "REFRESH_TOKEN_MISSING")
+          if not secret or not seed:
+              raise SystemExit(0)
+          try:
+              with urlopen("https://raw.githubusercontent.com/jah0708/siler-city-fantasy/main/.github/yahoo-oauth.enc.json", timeout=20) as r:
+                  payload = json.load(r)
+              key = hashlib.sha256(b"scfl-oauth-v1\x00" + secret.encode()).digest()
+              raw = AESGCM(key).decrypt(base64.b64decode(payload["nonce"]), base64.b64decode(payload["ciphertext"]), b"scfl-yahoo-oauth-state-v1")
+              state = json.loads(raw)
+              print("TOKEN_STATE_DECRYPTABLE")
+              print("TOKEN_SEED_MATCH" if state["seed_fingerprint"] == hashlib.sha256(seed.encode()).hexdigest() else "TOKEN_SEED_CHANGED")
+          except InvalidTag:
+              print("TOKEN_STATE_NOT_DECRYPTABLE_WITH_CURRENT_SECRET")
+          except HTTPError as e:
+              print("TOKEN_STATE_FETCH_HTTP_" + str(e.code))
+          except Exception as e:
+              print("TOKEN_STATE_CHECK_ERROR_" + type(e).__name__)
           PY
