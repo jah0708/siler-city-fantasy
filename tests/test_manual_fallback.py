@@ -125,6 +125,71 @@ class ManualFallbackTests(unittest.TestCase):
                     self.assertFalse(backup.apply_manual_fallback(PASSWORD))
                     store.assert_not_called()
 
+    def test_three_encrypted_sources_validate_nine_week_records_before_storing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            pub, priv = base / "public.json", base / "private.enc.json"
+            sources = tuple((base / filename, weeks) for filename, weeks in (
+                ("old.enc.json", {"4", "5"}),
+                ("corrected.enc.json", {"5", "6", "7"}),
+                ("latest.enc.json", {"8", "9"}),
+            ))
+            payloads = [{"season": 2026, "matchups": {w: games_for(int(w)) for w in weeks}}
+                        for _, weeks in sources]
+            payloads[1]["matchups"]["5"][0][1] = 150.55
+            # Odd-numbered teams win every synthetic game except this Week 5 correction.
+            records = {f"Team {i}": [9, 0, 0] if i % 2 else [0, 9, 0] for i in range(10)}
+            records.update({"Team 0": [1, 8, 0], "Team 1": [8, 1, 0]})
+            payloads[2]["headToHeadCheckpoint"] = {"throughWeek": 9, "records": records}
+            initial = {
+                "seasons": {"2018": [{"name": "Historical Team"}]},
+                "currentSeason": "2026",
+                "currentStandings": [{"name": f"Team {i}"} for i in range(10)],
+                "matchups": {str(w): games_for(w) for w in range(1, 4)},
+                "draftOrder": [{"name": "Team 0"}],
+            }
+            with patch.object(backup, "PUBLIC_KEY", pub), \
+                 patch.object(backup, "PRIVATE_KEY", priv), \
+                 patch.object(backup, "MANUAL_SOURCES", sources):
+                backup.generate_key_files(PASSWORD)
+                public = json.loads(pub.read_text())
+                for (path, _), payload in zip(sources, payloads):
+                    path.write_text(json.dumps(backup.encrypt_manual_payload(payload, public)))
+                with patch.object(backup, "load_records", return_value=copy.deepcopy(initial)), \
+                     patch.object(backup, "store_records") as store:
+                    self.assertTrue(backup.apply_manual_fallback(PASSWORD))
+                    store.assert_called_once()
+                    outgoing = store.call_args.args[0]
+                    self.assertEqual(outgoing["yahoo"]["week"], 9)
+                    self.assertEqual(outgoing["yahoo"]["source"], "manual")
+                    self.assertEqual(set(outgoing["matchups"]), {str(w) for w in range(1, 10)})
+                    for week, games in initial["matchups"].items():
+                        self.assertEqual(outgoing["matchups"][week], games)
+                    self.assertEqual(outgoing["matchups"]["4"], payloads[0]["matchups"]["4"])
+                    for payload in payloads[1:]:
+                        for week, games in payload["matchups"].items():
+                            self.assertEqual(outgoing["matchups"][week], games)
+                    for key in ("seasons", "currentSeason", "draftOrder"):
+                        self.assertEqual(outgoing[key], initial[key])
+                    standings = outgoing["currentStandings"]
+                    self.assertEqual(len(standings), 10)
+                    self.assertTrue(all(len(row["weeks"]) == 9 for row in standings))
+                    self.assertEqual({row["name"]: [row["wins"], row["losses"], row["ties"]]
+                                      for row in standings}, records)
+                    for key, total in (("wins", 45), ("pointWins", 45), ("adjustedWins", 90)):
+                        self.assertEqual(sum(row[key] for row in standings), total)
+
+                # A structurally valid but incorrect encrypted checkpoint must fail closed.
+                payloads[2]["headToHeadCheckpoint"]["records"]["Team 0"] = [2, 7, 0]
+                payloads[2]["headToHeadCheckpoint"]["records"]["Team 1"] = [7, 2, 0]
+                sources[2][0].write_text(json.dumps(backup.encrypt_manual_payload(payloads[2], public)))
+                with patch.object(backup, "load_records", return_value=copy.deepcopy(initial)), \
+                     patch.object(backup, "store_records") as store:
+                    with self.assertRaisesRegex(ValueError, "head-to-head checkpoint") as error:
+                        backup.apply_manual_fallback(PASSWORD)
+                    self.assertNotIn("Team", str(error.exception))
+                    store.assert_not_called()
+
     def test_original_week_4_5_backup_still_works_alone(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)

@@ -30,7 +30,12 @@ PUBLIC_KEY = ROOT / ".github" / "fallback-public-key.json"
 PRIVATE_KEY = ROOT / ".github" / "fallback-key.enc.json"
 MANUAL_FILE = ROOT / "data" / "manual-fallback.enc.json"
 SUPPLEMENTAL_FILE = ROOT / "data" / "manual-week-5-7.enc.json"
-MANUAL_SOURCES = ((MANUAL_FILE, {"4", "5"}), (SUPPLEMENTAL_FILE, {"5", "6", "7"}))
+WEEK_8_9_FILE = ROOT / "data" / "manual-week-8-9.enc.json"
+MANUAL_SOURCES = (
+    (MANUAL_FILE, {"4", "5"}),
+    (SUPPLEMENTAL_FILE, {"5", "6", "7"}),
+    (WEEK_8_9_FILE, {"8", "9"}),
+)
 A_KEY = b"scfl-manual-private-v1"
 A_DATA = b"scfl-manual-score-data-v1"
 INFO = b"scfl-fallback-hkdf-v1"
@@ -185,7 +190,9 @@ def apply_manual_fallback(password: str) -> bool:
 
     The original Week 4-5 ciphertext cannot be decrypted outside the trusted runner.
     The separate Week 5-7 ciphertext intentionally supersedes its Week 5 results.
-    This retains the existing Week 4 backup and never commits plaintext scores.
+    Week 8-9 extends that backup without changing earlier results. Optional
+    encrypted head-to-head checkpoints verify the cumulative screenshot records.
+    No plaintext scores or checkpoint records are committed or logged.
     """
     available = [(path, weeks) for path, weeks in MANUAL_SOURCES if path.exists()]
     if not available:
@@ -199,6 +206,7 @@ def apply_manual_fallback(password: str) -> bool:
 
     manual_weeks = {}
     encrypted_blobs = []
+    checkpoints = []
     for path, expected_weeks in available:
         raw = path.read_bytes()
         manual = decrypt_manual_payload(private, json.loads(raw))
@@ -207,6 +215,8 @@ def apply_manual_fallback(password: str) -> bool:
             raise ValueError(f"Unexpected 2026 manual fallback weeks in {path.name}")
         validate_matchups(weeks, expected_names=names)
         manual_weeks.update(weeks)  # Newest backup wins for overlapping weeks.
+        if "headToHeadCheckpoint" in manual:
+            checkpoints.append(manual["headToHeadCheckpoint"])
         encrypted_blobs.append(raw)
 
     latest_manual_week = max(map(int, manual_weeks))
@@ -236,6 +246,25 @@ def apply_manual_fallback(password: str) -> bool:
         raise RuntimeError("Found a newer scoreboard; refusing to replace newer weeks")
 
     standings = compute_standings(combined, names)
+    # Screenshots show the current cumulative records even for an older matchup
+    # week. Bind each checkpoint to its stated week, not the filename or latest
+    # imported week. Verified live corrections take precedence over screenshots.
+    if yahoo.get("source") != "live":
+        for checkpoint in checkpoints:
+            through_week = checkpoint.get("throughWeek") if isinstance(checkpoint, dict) else None
+            expected = checkpoint.get("records") if isinstance(checkpoint, dict) else None
+            if (type(through_week) is not int or not 1 <= through_week <= latest_manual_week
+                    or not isinstance(expected, dict) or set(expected) != names
+                    or any(not isinstance(record, list) or len(record) != 3
+                           or any(type(value) is not int or value < 0 for value in record)
+                           or sum(record) != through_week for record in expected.values())):
+                raise ValueError("Invalid encrypted head-to-head checkpoint")
+            prefix = {week: games for week, games in combined.items() if int(week) <= through_week}
+            rows = compute_standings(prefix, names)
+            actual = {row["name"]: [row["wins"], row["losses"], row["ties"]] for row in rows}
+            if actual != expected:
+                raise ValueError("Calculated records disagree with encrypted head-to-head checkpoint")
+            print(f"Verified all ten head-to-head records through Week {through_week}.")
     db["currentStandings"] = standings
     db["currentTeams"] = [row["name"] for row in standings]
     db["matchups"] = combined
