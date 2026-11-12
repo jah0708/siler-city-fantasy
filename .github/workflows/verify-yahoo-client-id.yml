@@ -1,0 +1,24 @@
+name: Verify Yahoo client identity only
+
+on:
+  push:
+    branches: ['diagnostic/yahoo-client-id-20261112']
+    paths: ['.github/workflows/verify-yahoo-client-id.yml']
+
+permissions: {}
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Compare configured client ID without disclosing it
+        env:
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, os
+          value = os.environ.get("YAHOO_CLIENT_ID", "")
+          expected = "9ac855a96e99624d22eb437cd18cae2e0d2e53593a83556aa831713e75f0639b"
+          print("CLIENT_ID_MISSING" if not value else ("CLIENT_ID_MATCH" if hashlib.sha256(value.encode()).hexdigest() == expected else "CLIENT_ID_MISMATCH"))
+          PY
