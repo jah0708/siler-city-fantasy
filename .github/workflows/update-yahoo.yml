@@ -7,6 +7,9 @@ on:
     paths:
       - 'scripts/**'
       - 'tests/**'
+      - 'assets/**'
+      - 'package*.json'
+      - 'index.html'
       - 'data/manual-fallback.enc.json'
       - 'data/manual-week-5-7.enc.json'
       - 'data/manual-week-8-9.enc.json'
@@ -17,6 +20,9 @@ on:
     paths:
       - 'scripts/**'
       - 'tests/**'
+      - 'assets/**'
+      - 'package*.json'
+      - 'index.html'
       - 'data/manual-fallback.enc.json'
       - 'data/manual-week-5-7.enc.json'
       - 'data/manual-week-8-9.enc.json'
@@ -42,6 +48,21 @@ jobs:
         run: python -m pip install 'cryptography==46.0.4'
       - name: Verify encryption, safe handling and scoring
         run: python -m unittest discover -s tests -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci && npx playwright install --with-deps chromium
+      - name: Browser regression checks with synthetic data
+        run: |
+          python tests/preview_fixture.py
+          mkdir -p test-results
+          python -m http.server 8765 --directory /tmp/scfl-preview &
+          npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clubhouse-browser-checks
+          path: test-results/
 
   update:
     name: Fetch and publish encrypted league data
