@@ -55,14 +55,15 @@ They do not establish that the real registered Yahoo app accepts this flow.
 - Server settings are configured: the client credentials, verified league key,
   independent session key and trial-only private data key. No league password or
   existing Yahoo refresh token is copied to the trial server.
-- The rollout starts disabled while the new build and encrypted export are
-  verified. The feature flag can then enable the isolated pilot. This does not
-  replace shared-password access on GitHub Pages.
-- No real OAuth consent/token exchange has been performed through the trial.
+- The encrypted export succeeded and the isolated pilot is enabled. This does
+  not replace shared-password access on GitHub Pages.
+- A real Yahoo authorization succeeded, verified exact current-season league
+  membership and opened the clubhouse with decrypted data. Page refresh retained
+  the signed-in session; standings navigation worked.
 - The existing site password and GitHub Yahoo credentials were not changed.
-- The configured scopes are `openid fspt-r`; acceptance by the registered app
-  still requires a real-account test. Authorization must be tested with care for
-  the existing refresh-token chain, then the original sync rechecked.
+- The registered app accepted `openid fspt-r` during the real test. The original
+  sync was run again after authorization and successfully fetched, validated and
+  published encrypted league records using its existing credentials.
 
 ## Preview configuration sequence
 
@@ -100,8 +101,9 @@ This prototype is not a determination of contractual permission.
 
 An isolated hosting project, additional Yahoo callback and trial-only server
 secrets are configured without changing the working sync credentials. No consent
-settings or member invitations were changed. No real Yahoo round-trip has been
-performed. Build and configuration checks alone do not verify real authentication.
+settings or member invitations were changed. Real member sign-in and refresh have
+been verified. Real non-member and account-switching tests remain before a wider
+league rollout; synthetic denial, expiry and cancellation tests pass.
 Existing shared-password access remains available at the current site during any
 pilot. The public ciphertext and old repository history are not retroactively
 hidden by adding this login option. Rate limits and a durable session store are

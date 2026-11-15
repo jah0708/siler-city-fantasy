@@ -2,7 +2,9 @@ import { readSettings,seal,unseal,cookie,setCookie,SESSION,TRANSACTION,decryptSn
 import { createYahoo } from './yahoo.mjs';
 const TRIAL_SNAPSHOT='https://raw.githubusercontent.com/jah0708/siler-city-fantasy/login-trial-data/snapshot.enc.json';
 const SNAPSHOT='https://jah0708.github.io/siler-city-fantasy/data/league-data.enc.json';
-const privateHeaders={'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'};
+// Same-origin preserves the Origin header on the logout form while suppressing
+// referrers to Yahoo and other origins. no-referrer makes native form Origin null.
+const privateHeaders={'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff'};
 export function createHandler({env=process.env,fetcher=fetch,yahooFactory=createYahoo}={}){
  let settings,yahoo;
  function response(data,status=200,extra={}){return new Response(JSON.stringify(data),{status,headers:{...privateHeaders,'Content-Type':'application/json',...extra}})}
