@@ -27,6 +27,10 @@ class FinalResultsUnavailable(RuntimeError):
     """No completed week can currently be verified from both sources."""
 
 
+class RegularSeasonBoundaryUnavailable(RuntimeError):
+    """A regular-season cutoff cannot safely be inferred from the feed."""
+
+
 class YahooError(RuntimeError):
     def __init__(self, code: int, description: str):
         self.code = code
@@ -149,6 +153,45 @@ def league_metadata(token: str, league_key: str) -> tuple[int, int, str]:
     if not 1 <= week <= 19 or not 1 <= end <= 19:
         raise RuntimeError("Invalid season weeks from Yahoo")
     return week, end, name
+
+
+def regular_season_end(token: str, league_key: str, league_end: int, cached: int | None = None) -> tuple[int, bool]:
+    """Use an explicit site override or Yahoo's league playoff settings.
+
+    This only bounds regular-season calculations; it does not import Yahoo
+    standings or change the league's scoring or playoff rules.
+    """
+    override = os.getenv("SCFL_REGULAR_SEASON_END_WEEK", "").strip()
+    if override:
+        try:
+            end = int(override)
+        except ValueError:
+            raise RegularSeasonBoundaryUnavailable("Invalid regular-season override") from None
+        if not 1 <= end <= league_end:
+            raise RegularSeasonBoundaryUnavailable("Regular-season override is outside the league season")
+        print(f"Regular-season boundary: Week {end} (site override).")
+        return end, True
+    try:
+        settings = api(f"league/{league_key}/settings", token)
+        raw_uses = first_value(settings, "uses_playoff")
+        raw_start = first_value(settings, "playoff_start_week")
+        uses = str(raw_uses).lower() if raw_uses is not None else ""
+        if uses in ("0", "false"):
+            end = league_end
+        elif uses in ("1", "true") or (not uses and raw_start is not None):
+            start = int(raw_start)
+            if not 2 <= start <= league_end + 1:
+                raise ValueError("Invalid playoff start")
+            end = start - 1
+        else:
+            raise ValueError("Playoff settings unavailable")
+        print(f"Regular-season boundary: Week {end} (Yahoo league settings).")
+        return end, True
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
+        if type(cached) is int and 1 <= cached <= league_end:
+            print(f"::warning::Yahoo playoff settings unavailable; retaining verified Week {cached} regular-season boundary.")
+            return cached, False
+        raise RegularSeasonBoundaryUnavailable("Regular-season end could not be verified") from None
 
 
 def week_matchups(token: str, league_key: str, week: int) -> list:
@@ -301,8 +344,16 @@ def main() -> int:
         current, end, name = league_metadata(token, key)
         print(f"Yahoo league metadata: current week {current}, end week {end}.")
         try:
-            week, standings, matchups = standings_and_scores(token, key, current, end, season)
-        except FinalResultsUnavailable:
+            same_season = str(database.get("currentSeason")) == str(season)
+            cached_end = database.get("yahoo", {}).get("regularSeasonEnd") if same_season else None
+            regular_end, boundary_current = regular_season_end(token, key, end, cached_end)
+            if not boundary_current:
+                raise FinalResultsUnavailable("Yahoo regular-season boundary could not be reverified")
+            week, standings, matchups = standings_and_scores(token, key, current, regular_end, season)
+        except (FinalResultsUnavailable, RegularSeasonBoundaryUnavailable) as exc:
+            if isinstance(exc, RegularSeasonBoundaryUnavailable):
+                regular_end = None
+                print("::warning::Regular-season boundary unavailable; standings will not advance.")
             week, standings, matchups = 0, None, None
     except YahooError as exc:
         if exc.code == 403 and "not authorized" in exc.description.lower():
@@ -318,11 +369,12 @@ def main() -> int:
     same_season = str(database.get("currentSeason")) == str(season)
     confirmed_week = int(previous_yahoo.get("finalizedThrough", 0) or 0) if same_season else 0
     recorded = int(previous_yahoo.get("week", 0) or 0)
-    preserve_manual = same_season and previous_yahoo.get("source") == "manual" and week < recorded
-    preserve_confirmed = same_season and confirmed_week > week
+    preserve_manual = same_season and regular_end is not None and previous_yahoo.get("source") == "manual" and week < recorded <= regular_end
+    preserve_confirmed = same_season and regular_end is not None and week < confirmed_week <= regular_end
     database["hub"] = collect_hub(token, key, current, end, database.get("hub", {}), api)
     if preserve_manual or preserve_confirmed:
-        print(f"::warning::Unable to reverify all weeks; retained previously confirmed standings and refreshed the live matchup feed.")
+        database["yahoo"]["regularSeasonEnd"] = regular_end
+        print("::warning::Unable to reverify all weeks; retained previously confirmed standings and refreshed the live matchup feed.")
         store_records(database, credential)
         return 0
     if week == 0:
@@ -350,6 +402,7 @@ def main() -> int:
             "source": "live",
             "standingsAvailable": True,
             "finalizedThrough": week,
+            "regularSeasonEnd": regular_end,
             "leagueName": name,
             "lastUpdated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "week": week,

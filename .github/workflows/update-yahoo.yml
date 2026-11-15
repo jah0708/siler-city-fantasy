@@ -95,6 +95,7 @@ jobs:
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
           YAHOO_LEAGUE_ID: '844486'
+          SCFL_REGULAR_SEASON_END_WEEK: ${{ vars.SCFL_REGULAR_SEASON_END_WEEK }}
         run: |
           cp .github/league-archive.enc.json /tmp/scfl-archive-before-sync.enc.json
           python scripts/update_from_yahoo.py

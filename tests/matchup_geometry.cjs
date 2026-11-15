@@ -38,7 +38,7 @@ const fs=require('node:fs');
    if(availability===undefined)delete db.yahoo.standingsAvailable;
    else db.yahoo.standingsAvailable=availability;
    await page.reload();
-   await page.getByText('Completed standings unavailable; retrying after results are verified.').waitFor();
+   await page.locator('#hubHome').getByText('Completed standings unavailable; retrying after results are verified.').waitFor();
    assert.equal(await page.locator('#hubHome .hub-summary').count(),0);
   }
   await checkPair('#hubHome','unavailable standings overview');

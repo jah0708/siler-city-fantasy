@@ -162,7 +162,7 @@ class YahooTests(unittest.TestCase):
         with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
              patch.object(yahoo,'apply_manual_fallback'), patch.object(yahoo,'refresh_access_token',return_value='access'), \
              patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
-             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), patch.object(yahoo,'regular_season_end',return_value=(14,True)), \
              patch.object(yahoo,'standings_and_scores',return_value=(9,rows,{'9':[['A',1,'B',0]]})), \
              patch.object(yahoo,'collect_hub',return_value={'schedule':{'10':[{'status':'midevent'}]}}), \
              patch.object(yahoo,'store_records') as store:
@@ -177,7 +177,7 @@ class YahooTests(unittest.TestCase):
         with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
              patch.object(yahoo,'apply_manual_fallback'), patch.object(yahoo,'refresh_access_token',return_value='access'), \
              patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
-             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), patch.object(yahoo,'regular_season_end',return_value=(14,True)), \
              patch.object(yahoo,'standings_and_scores',return_value=(8,[{'name':'Older'}],{})), \
              patch.object(yahoo,'collect_hub',return_value={'schedule':{'10':[{'status':'midevent'}]}}), \
              patch.object(yahoo,'store_records') as store:
@@ -192,7 +192,7 @@ class YahooTests(unittest.TestCase):
         with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
              patch.object(yahoo,'apply_manual_fallback',side_effect=yahoo.TopHalfCutoffTie('ambiguous')), patch.object(yahoo,'refresh_access_token',return_value='access'), \
              patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
-             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), patch.object(yahoo,'regular_season_end',return_value=(14,True)), \
              patch.object(yahoo,'standings_and_scores',side_effect=yahoo.FinalResultsUnavailable('NFL feed unavailable')), \
              patch.object(yahoo,'collect_hub',return_value={'week':10,'schedule':{'10':[{'status':'midevent'}]}}), \
              patch.object(yahoo,'store_records') as store:
@@ -207,7 +207,7 @@ class YahooTests(unittest.TestCase):
         with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
              patch.object(yahoo,'apply_manual_fallback'), patch.object(yahoo,'refresh_access_token',return_value='access'), \
              patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
-             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), patch.object(yahoo,'regular_season_end',return_value=(14,True)), \
              patch.object(yahoo,'standings_and_scores',side_effect=yahoo.FinalResultsUnavailable('NFL feed unavailable')), \
              patch.object(yahoo,'collect_hub',return_value={'week':10,'schedule':{'10':[{'status':'midevent'}]}}), \
              patch.object(yahoo,'store_records') as store:
@@ -223,7 +223,7 @@ class YahooTests(unittest.TestCase):
         with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
              patch.object(yahoo,'apply_manual_fallback'), patch.object(yahoo,'refresh_access_token',return_value='access'), \
              patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
-             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), patch.object(yahoo,'regular_season_end',return_value=(14,True)), \
              patch.object(yahoo,'standings_and_scores',side_effect=yahoo.FinalResultsUnavailable('NFL feed unavailable')), \
              patch.object(yahoo,'collect_hub',return_value={'week':10,'schedule':{'10':[{'status':'midevent'}]}}), \
              patch.object(yahoo,'store_records') as store:
@@ -244,6 +244,59 @@ class YahooTests(unittest.TestCase):
             week,rows,matchups=yahoo.standings_and_scores('token','league',2,17,2026)
         self.assertEqual((week,list(matchups)),(1,['1']))
         self.assertEqual(len(rows),10)
+
+    def test_playoff_settings_bound_regular_season_without_using_official_standings(self):
+        settings={'fantasy_content':{'league':[{'settings':[{'uses_playoff':'1','playoff_start_week':'15'}]}]}}
+        with patch.dict('os.environ',{'SCFL_REGULAR_SEASON_END_WEEK':''}), patch.object(yahoo,'api',return_value=settings):
+            self.assertEqual(yahoo.regular_season_end('token','league',17),(14,True))
+        with patch.dict('os.environ',{'SCFL_REGULAR_SEASON_END_WEEK':'13'}), patch.object(yahoo,'api',side_effect=AssertionError('override should not query Yahoo')):
+            self.assertEqual(yahoo.regular_season_end('token','league',17),(13,True))
+        with patch.dict('os.environ',{'SCFL_REGULAR_SEASON_END_WEEK':''}), patch.object(yahoo,'api',side_effect=TimeoutError('unavailable')):
+            self.assertEqual(yahoo.regular_season_end('token','league',17,cached=14),(14,False))
+            with self.assertRaises(yahoo.RegularSeasonBoundaryUnavailable):yahoo.regular_season_end('token','league',17)
+        with patch.dict('os.environ',{'SCFL_REGULAR_SEASON_END_WEEK':'999'}):
+            with self.assertRaises(yahoo.RegularSeasonBoundaryUnavailable):yahoo.regular_season_end('token','league',17)
+
+    def test_postseason_weeks_are_not_added_to_regular_season_standings(self):
+        games=[[(f"t{i}a",f"A{i}",100+i),(f"t{i}b",f"B{i}",90+i)] for i in range(5)]
+        with patch.object(yahoo,'week_matchups',return_value=games) as fetch, patch.object(yahoo,'nfl_week_complete',return_value=True):
+            week,rows,matchups=yahoo.standings_and_scores('token','league',15,14,2026)
+        self.assertEqual(week,14)
+        self.assertEqual(fetch.call_count,14)
+        self.assertNotIn('15',matchups)
+        self.assertTrue(all(len(row['weeks'])==14 for row in rows))
+
+    def test_missing_boundary_hides_unverified_records_but_refreshes_matchups(self):
+        initial={'seasons':{'2025':[{}]},'currentSeason':'2026','currentStandings':[{'name':'Provisional'}], 'matchups':{'10':[]}, 'yahoo':{'week':10,'source':'live'},'hub':{}}
+        with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
+             patch.object(yahoo,'apply_manual_fallback'), patch.object(yahoo,'refresh_access_token',return_value='access'), \
+             patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'regular_season_end',side_effect=yahoo.RegularSeasonBoundaryUnavailable('no cutoff')), \
+             patch.object(yahoo,'collect_hub',return_value={'week':10,'schedule':{'10':[{'status':'midevent'}]}}), \
+             patch.object(yahoo,'store_records') as store:
+            self.assertEqual(yahoo.main(),0)
+            result=store.call_args.args[0]
+            self.assertFalse(result['yahoo']['standingsAvailable'])
+            self.assertEqual(result['yahoo']['week'],0)
+            self.assertEqual(result['hub']['week'],10)
+
+    def test_temporarily_unavailable_settings_preserve_verified_boundary_and_standings(self):
+        initial={'seasons':{'2025':[{}]},'currentSeason':'2026','currentStandings':[{'name':'Confirmed'}], 'matchups':{'9':[]}, 'yahoo':{'week':9,'finalizedThrough':9,'regularSeasonEnd':14,'standingsAvailable':True,'source':'live'},'hub':{}}
+        with patch.dict('os.environ',{'YAHOO_CLIENT_SECRET':PASSWORD}), patch.object(yahoo,'load_records',return_value=initial), \
+             patch.object(yahoo,'apply_manual_fallback'), patch.object(yahoo,'refresh_access_token',return_value='access'), \
+             patch.object(yahoo,'find_league',return_value=('470.l.844486',2026)), \
+             patch.object(yahoo,'league_metadata',return_value=(10,17,'Siler City')), \
+             patch.object(yahoo,'regular_season_end',return_value=(14,False)), \
+             patch.object(yahoo,'standings_and_scores') as scorer, \
+             patch.object(yahoo,'collect_hub',return_value={'week':10,'schedule':{'10':[{'status':'midevent'}]}}), \
+             patch.object(yahoo,'store_records') as store:
+            self.assertEqual(yahoo.main(),0)
+            scorer.assert_not_called()
+            result=store.call_args.args[0]
+            self.assertEqual(result['yahoo']['regularSeasonEnd'],14)
+            self.assertEqual(result['yahoo']['finalizedThrough'],9)
+            self.assertEqual(result['hub']['week'],10)
 
     def test_pending_authorization_has_error_code(self):
         err = yahoo.YahooError(403, "This application is not authorized to perform this action")
