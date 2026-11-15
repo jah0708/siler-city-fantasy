@@ -42,7 +42,25 @@ state/nonce, forged signatures, wrong issuer/audience, expired ID tokens/session
 non-members, wrong-season membership, encrypted data handling, and logout CSRF.
 They do not establish that the real registered Yahoo app accepts this flow.
 
-## Proposed preview setup (not performed)
+## Hosted trial status — November 15, 2026
+
+- Vercel project: `siler-city-login-trial` in `JAH0708 Projects`.
+- Project ID: `prj_9lO1KI5gf5PnWrawR5UTKAnzisJn`.
+- Isolated trial URL: https://siler-city-login-trial.vercel.app/
+- Deployed source: `84bdbf9bda3dedcf872e843bdaf009bfba56524b`.
+- Yahoo SCFLv2 is a Confidential Client with Fantasy Sports Read enabled.
+- The additional callback `https://siler-city-login-trial.vercel.app/api/auth/callback`
+  was saved successfully in Yahoo after Jonny's confirmation. The original
+  `https://jah0708.github.io/siler-city-fantasy/` callback is preserved.
+- Trial host returns `enabled:false`; protected league data is unavailable.
+  Server secrets have not been configured and no real OAuth consent/token
+  exchange has been performed through the trial.
+- The existing site password and GitHub Yahoo credentials were not changed.
+- Before enabling, verify the OIDC/Fantasy scope combination and configure
+  server secrets. A new real-account authorization must be tested with care for
+  the existing refresh-token chain, then the original sync rechecked.
+
+## Preview configuration sequence
 
 1. Create a **separate** preview hosting project using this directory as its root.
    Keep the UI and APIs on the same HTTPS origin. Do not reuse Wave Angler's project.
@@ -76,9 +94,9 @@ This prototype is not a determination of contractual permission.
 
 ## Boundaries and remaining work
 
-No production domain/project, credentials, Yahoo callback, consent settings or
-member invitations were created or changed. No real Yahoo round-trip has been
-performed. Deploying a disabled shell alone does not verify authentication.
+An isolated disabled hosting project and an additional Yahoo callback are now
+prepared as recorded above. No credentials, consent settings or member
+invitations were changed. No real Yahoo round-trip has been performed. Deploying a disabled shell alone does not verify authentication.
 Existing shared-password access remains available at the current site during any
 pilot. The public ciphertext and old repository history are not retroactively
 hidden by adding this login option. Rate limits and a durable session store are
