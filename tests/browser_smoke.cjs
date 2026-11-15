@@ -21,18 +21,21 @@ const assert=require('node:assert/strict');
  await page.locator('[data-view="standings"]').click();
  await page.locator('#standingYears button').first().click();
  assert((await page.locator('#standingNote').textContent()).includes('current-week results may change'));
- for(const view of ['teams','players','compare','activity','standings','matchups','playoffs','draft','history']){
-  await page.locator(`[data-view="${view}"]`).click();assert(await page.locator(`#${view}`).isVisible());
+ const openView=async view=>{if(['players','activity','playoffs','draft','history'].includes(view))await page.locator('.nav-more > summary').click();await page.locator(`[data-view="${view}"]`).click()};
+ for(const view of ['teams','players','activity','standings','matchups','playoffs','draft','history']){
+  await openView(view);assert(await page.locator(`#${view}`).isVisible());
  }
- await page.locator('[data-view="players"]').click();await page.locator('#playerSearch').fill('Player 2-0');assert.equal(await page.locator('#playerResults tbody tr').count(),1);
+ await openView('playoffs');assert((await page.locator('#playoffBracket').textContent()).includes('not been configured'));await page.locator('#playoffYears [data-year="2025"]').click();assert((await page.locator('#playoffNote').textContent()).includes('2025'));
+ await page.locator('.nav-more > summary').focus();await page.keyboard.press('Enter');assert(await page.locator('.nav-more').evaluate(el=>el.open));await page.keyboard.press('Escape');assert(!(await page.locator('.nav-more').evaluate(el=>el.open)));assert(await page.locator('.nav-more > summary').evaluate(el=>document.activeElement===el));
+ await openView('players');await page.locator('#playerSearch').fill('Player 2-0');assert.equal(await page.locator('#playerResults tbody tr').count(),1);
  await page.locator('#playerResults [data-player]').click();await page.locator('#playerDialog[open]').waitFor();await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.locator('#playerSearch').fill('nobody xyz');assert.equal(await page.locator('#playerResults tbody tr').count(),0);
  await page.locator('[data-view="teams"]').click();await page.locator('#teamPicker').selectOption('t5');assert((await page.locator('#teamContent').textContent()).includes('Team 5'));await page.locator('#rosterWeek').selectOption('1');
- await page.locator('[data-view="draft"]').click();await page.locator('#draftTeam').selectOption('t2');assert.equal(await page.locator('#draftPicks tbody tr').count(),1);
+ await openView('draft');await page.locator('#draftTeam').selectOption('t2');assert.equal(await page.locator('#draftPicks tbody tr').count(),1);
  await page.setViewportSize({width:390,height:844});await page.locator('[data-view="clubhouse"]').click();await page.screenshot({path:'test-results/clubhouse-mobile.png',fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'page must not overflow mobile');
  assert((await page.locator('[data-view="matchups"]').boundingBox()).height>=44,'navigation touch target too small');
- await page.locator('#lockLeague').click();await page.locator('#unlockPanel').waitFor();assert.equal(await page.locator('main').isVisible(),false);
+ await page.locator('.nav-more > summary').click();await page.locator('#lockLeague').click();await page.locator('#unlockPanel').waitFor();assert.equal(await page.locator('main').isVisible(),false);
  await page.reload();await page.locator('#unlockPanel').waitFor();assert.equal(await page.locator('main').isVisible(),false);
  assert.equal(await page.locator('input[type=password]').count(),0);
  await page.getByRole('link',{name:'Sign in with Yahoo',exact:true}).waitFor();
