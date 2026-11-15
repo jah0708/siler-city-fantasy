@@ -149,7 +149,7 @@ def league_metadata(token: str, league_key: str) -> tuple[int, int, str]:
 
 def week_matchups(token: str, league_key: str, week: int) -> list:
     data = api(f"league/{league_key}/scoreboard;week={week}", token)
-    games, seen_pairs = [], set()
+    games, seen_pairs, statuses = [], set(), []
     for matchup in containers(data, "matchup"):
         pair, seen_teams = [], set()
         for entity in containers(matchup, "team"):
@@ -169,7 +169,12 @@ def week_matchups(token: str, league_key: str, week: int) -> list:
         if keys in seen_pairs or len(keys) != 2:
             continue
         games.append(pair)
+        statuses.append(str(first_value(matchup, "status") or "").lower())
         seen_pairs.add(keys)
+    # Yahoo can return a full set of 0-0 matches before a week starts.
+    # Do not assign ties or top-five scoring wins until at least one game begins.
+    if statuses and len(statuses) == len(games) and all(status == "preevent" for status in statuses):
+        return []
     return games
 
 
