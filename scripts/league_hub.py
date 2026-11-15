@@ -62,7 +62,7 @@ def player(entity):
 
 def collect(token, league_key, current, end, previous, api):
     now = datetime.now(timezone.utc).isoformat(timespec='seconds')
-    previous = previous if isinstance(previous, dict) else {}
+    previous = previous if isinstance(previous, dict) and previous.get('leagueKey', league_key) == league_key else {}
     hub = dict(previous)
     hub.update(version=1, leagueKey=league_key, week=current, checkedAt=now, errors={})
     sections = dict(previous.get('sections', {}))

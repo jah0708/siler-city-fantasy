@@ -96,8 +96,10 @@ GATE_HTML = """
     <h1>League members</h1>
     <p>Enter the league password to view standings, scores and history.</p>
     <form id="unlockForm">
+      <input type="text" name="username" autocomplete="username" value="Siler City Fantasy League" readonly tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
       <label for="unlockPassword">League password</label>
-      <input id="unlockPassword" type="password" autocomplete="off" required minlength="20">
+      <input id="unlockPassword" name="password" type="password" autocomplete="current-password" required minlength="20">
+      <p class="unlock-help">Stay unlocked in this tab until you select Lock. Your password manager can save the password for next time.</p>
       <button type="submit">View league results</button>
       <div id="unlockStatus" aria-live="polite"></div>
     </form>
@@ -111,6 +113,7 @@ GATE_JS = """
       const status=document.getElementById('unlockStatus');
       const form=document.getElementById('unlockForm');
       const passwordField=document.getElementById('unlockPassword');
+      const sessionKey='scfl.league.password.session';
       let payload;
       try{
         const response=await fetch('data/league-data.enc.json',{cache:'no-store'});
@@ -122,25 +125,39 @@ GATE_JS = """
         throw err;
       }
       const fromBase64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
+      async function decrypt(pass){
+        const keySource=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+        const key=await crypto.subtle.deriveKey(
+          {name:'PBKDF2',salt:fromBase64(payload.salt),iterations:payload.iterations,hash:'SHA-256'},
+          keySource,{name:'AES-GCM',length:256},false,['decrypt']
+        );
+        const clear=await crypto.subtle.decrypt(
+          {name:'AES-GCM',iv:fromBase64(payload.nonce),additionalData:new TextEncoder().encode('scfl-data-v1')},
+          key,fromBase64(payload.ciphertext)
+        );
+        return JSON.parse(new TextDecoder().decode(clear));
+      }
+      function showLeague(db){
+        passwordField.value='';
+        panel.hidden=true;
+        document.body.classList.remove('locked');
+        return db;
+      }
+      let remembered='';
+      try{remembered=sessionStorage.getItem(sessionKey)||''}catch{}
+      if(remembered){
+        status.textContent='Opening your league…';
+        try{return showLeague(await decrypt(remembered))}
+        catch{try{sessionStorage.removeItem(sessionKey)}catch{};status.textContent='Please enter your league password again.'}
+      }
       return new Promise(resolve=>form.addEventListener('submit',async event=>{
         event.preventDefault();status.textContent='Unlocking…';
         form.querySelector('button').disabled=true;
         try{
           const pass=passwordField.value;
-          const keySource=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
-          const key=await crypto.subtle.deriveKey(
-            {name:'PBKDF2',salt:fromBase64(payload.salt),iterations:payload.iterations,hash:'SHA-256'},
-            keySource,{name:'AES-GCM',length:256},false,['decrypt']
-          );
-          const clear=await crypto.subtle.decrypt(
-            {name:'AES-GCM',iv:fromBase64(payload.nonce),additionalData:new TextEncoder().encode('scfl-data-v1')},
-            key,fromBase64(payload.ciphertext)
-          );
-          const db=JSON.parse(new TextDecoder().decode(clear));
-          passwordField.value='';
-          panel.hidden=true;
-          document.body.classList.remove('locked');
-          resolve(db);
+          const db=await decrypt(pass);
+          try{sessionStorage.setItem(sessionKey,pass)}catch{}
+          resolve(showLeague(db));
         }catch(err){status.textContent='Unable to unlock. Check the password and try again.'}
         finally{form.querySelector('button').disabled=false}
       }));
