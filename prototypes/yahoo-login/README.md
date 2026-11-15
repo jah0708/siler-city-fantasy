@@ -1,7 +1,7 @@
 # Yahoo member sign-in trial
 
-This is an isolated prototype. It does not change the live GitHub Pages site,
-its password, its Yahoo registration, or its scheduled import.
+This is an isolated prototype. It preserves the live GitHub Pages site,
+its password, the original Yahoo callback and its scheduled import.
 
 ## What is implemented
 
@@ -47,17 +47,21 @@ They do not establish that the real registered Yahoo app accepts this flow.
 - Vercel project: `siler-city-login-trial` in `JAH0708 Projects`.
 - Project ID: `prj_9lO1KI5gf5PnWrawR5UTKAnzisJn`.
 - Isolated trial URL: https://siler-city-login-trial.vercel.app/
-- Deployed source: `84bdbf9bda3dedcf872e843bdaf009bfba56524b`.
+- Deployment source is tracked by the separate Vercel project's deployment log.
 - Yahoo SCFLv2 is a Confidential Client with Fantasy Sports Read enabled.
 - The additional callback `https://siler-city-login-trial.vercel.app/api/auth/callback`
   was saved successfully in Yahoo after Jonny's confirmation. The original
   `https://jah0708.github.io/siler-city-fantasy/` callback is preserved.
-- Trial host returns `enabled:false`; protected league data is unavailable.
-  Server secrets have not been configured and no real OAuth consent/token
-  exchange has been performed through the trial.
+- Server settings are configured: the client credentials, verified league key,
+  independent session key and trial-only private data key. No league password or
+  existing Yahoo refresh token is copied to the trial server.
+- The rollout starts disabled while the new build and encrypted export are
+  verified. The feature flag can then enable the isolated pilot. This does not
+  replace shared-password access on GitHub Pages.
+- No real OAuth consent/token exchange has been performed through the trial.
 - The existing site password and GitHub Yahoo credentials were not changed.
-- Before enabling, verify the OIDC/Fantasy scope combination and configure
-  server secrets. A new real-account authorization must be tested with care for
+- The configured scopes are `openid fspt-r`; acceptance by the registered app
+  still requires a real-account test. Authorization must be tested with care for
   the existing refresh-token chain, then the original sync rechecked.
 
 ## Preview configuration sequence
@@ -94,9 +98,10 @@ This prototype is not a determination of contractual permission.
 
 ## Boundaries and remaining work
 
-An isolated disabled hosting project and an additional Yahoo callback are now
-prepared as recorded above. Trial-only server secrets are configured without changing the working sync
-credentials. No consent settings or member invitations were changed. No real Yahoo round-trip has been performed. Deploying a disabled shell alone does not verify authentication.
+An isolated hosting project, additional Yahoo callback and trial-only server
+secrets are configured without changing the working sync credentials. No consent
+settings or member invitations were changed. No real Yahoo round-trip has been
+performed. Build and configuration checks alone do not verify real authentication.
 Existing shared-password access remains available at the current site during any
 pilot. The public ciphertext and old repository history are not retroactively
 hidden by adding this login option. Rate limits and a durable session store are
