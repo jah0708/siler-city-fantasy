@@ -34,6 +34,7 @@ jobs:
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
           YAHOO_LEAGUE_ID: '844486'
+          SCFL_REGULAR_SEASON_END_WEEK: ${{ vars.SCFL_REGULAR_SEASON_END_WEEK }}
         run: |
           if ! python scripts/update_from_yahoo.py; then
             echo "::warning::Yahoo live-data sync did not complete yet; refreshed OAuth token will still be saved."

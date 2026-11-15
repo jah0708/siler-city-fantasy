@@ -40,6 +40,10 @@ A_DATA = b"scfl-manual-score-data-v1"
 INFO = b"scfl-fallback-hkdf-v1"
 
 
+class TopHalfCutoffTie(ValueError):
+    """Manual scores cannot be ranked safely without a cutoff tiebreak rule."""
+
+
 def enc(value: bytes) -> str:
     return base64.b64encode(value).decode("ascii")
 
@@ -151,7 +155,10 @@ def compute_standings(all_matchups: dict, names: set[str]) -> list[dict]:
         matches = all_matchups[str(week)]
         scores = [(name, int(round(score * 100))) for a, a_score, b, b_score in matches
                   for name, score in ((a, a_score), (b, b_score))]
-        top_five = {name for name, _ in sorted(scores, key=lambda t: (-t[1], t[0]))[:5]}
+        ordered = sorted(scores, key=lambda t: (-t[1], t[0]))
+        if ordered[4][1] == ordered[5][1]:
+            raise TopHalfCutoffTie(f"Week {week} has a tie at the top-half cutoff; league tiebreak rule is not configured")
+        top_five = {name for name, _ in ordered[:5]}
         for a, a_score, b, b_score in matches:
             left, right = int(round(a_score * 100)), int(round(b_score * 100))
             for name, score, other in ((a, left, right), (b, right, left)):
