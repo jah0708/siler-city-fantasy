@@ -21,6 +21,7 @@ html=html.slice(0,start)+`    async function unlockLeague(){
 `+html.slice(end);
 const a=html.indexOf('<section class="unlock"'), b=html.indexOf('</section>',a)+10;
 html=html.slice(0,a)+`<section class="unlock" id="unlockPanel"><div class="unlock-card"><img src="scfl-logo.png" alt="Siler City Fantasy League logo"><h1>Your league. Your Yahoo.</h1><p>Sign in with the Yahoo account you use for Siler City. Only league members can enter.</p><a id="yahooLogin" class="hub-btn" href="/api/auth/login" hidden>Sign in with Yahoo</a><p id="loginStatus" role="status" aria-live="polite"></p><p><a href="https://jah0708.github.io/siler-city-fantasy/">Use the current league site</a></p></div></section>`+html.slice(b);
+html=html.replace('</head>','<style>#yahooLogin[hidden]{display:none}</style></head>');
 html=html.replace('<script src="assets/hub.js"></script>',`<script src="assets/hub.js"></script><script>const initializeHub=window.initLeagueHub;window.initLeagueHub=db=>{initializeHub(db);document.getElementById('lockLeague').textContent='Sign out';document.getElementById('lockLeague').onclick=()=>{const form=document.createElement('form');form.method='POST';form.action='/api/auth/logout';document.body.appendChild(form);form.submit()}};</script>`);
 await writeFile(new URL('index.html',out),html);
 await copyFile(new URL('scfl-logo.png',root),new URL('scfl-logo.png',out));
