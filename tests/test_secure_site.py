@@ -98,6 +98,28 @@ class YahooTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 yahoo.standings_and_scores("token", "league", 2, 17)
 
+    def test_unstarted_scoreboard_is_not_counted_as_completed_week(self):
+        def payload(status):
+            return {"matchups": [{"matchup": {"status": status[i], "teams": [
+                {"team": {"team_key": f"t{i}a", "name": f"A{i}", "team_points": {"total": "0"}}},
+                {"team": {"team_key": f"t{i}b", "name": f"B{i}", "team_points": {"total": "0"}}},
+            ]}} for i in range(5)]}
+        with patch.object(yahoo, "api", return_value=payload(["preevent"] * 5)):
+            self.assertEqual(yahoo.week_matchups("token", "league", 2), [])
+        with patch.object(yahoo, "api", return_value=payload(["midevent"] + ["preevent"] * 4)):
+            self.assertEqual(len(yahoo.week_matchups("token", "league", 2)), 5)
+        with patch.object(yahoo, "api", return_value=payload([""] * 5)):
+            self.assertEqual(len(yahoo.week_matchups("token", "league", 2)), 5)
+
+    def test_unstarted_current_week_preserves_previous_adjusted_records(self):
+        games = [[(f"t{i}a", f"A{i}", 100.0+i), (f"t{i}b", f"B{i}", 90.0+i)] for i in range(5)]
+        with patch.object(yahoo, "week_matchups", side_effect=[games, []]):
+            week, rows, matchups = yahoo.standings_and_scores("token", "league", 2, 17)
+        self.assertEqual(week, 1)
+        self.assertEqual(list(matchups), ["1"])
+        self.assertTrue(all(len(row["weeks"]) == 1 for row in rows))
+        self.assertTrue(all(row["ties"] == 0 for row in rows))
+
     def test_pending_authorization_has_error_code(self):
         err = yahoo.YahooError(403, "This application is not authorized to perform this action")
         self.assertEqual(err.code, 403)

@@ -6,7 +6,20 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('main').isVisible(),false);
  await page.locator('#unlockPassword').fill('local-preview-only-password-2026');await page.locator('#unlockForm button').click();await page.locator('#hubHome #allMatchups').waitFor();
  await page.reload();await page.locator('#hubHome #allMatchups').waitFor();assert.equal(await page.locator('main').isVisible(),true);
+ const standingsNav=page.locator('[data-view="standings"]');await standingsNav.focus();await standingsNav.press('Enter');
+ assert.equal(await standingsNav.getAttribute('aria-current'),'page');assert.equal(await standingsNav.getAttribute('aria-controls'),'standings');
+ assert.equal(await page.evaluate(()=>document.activeElement.closest('.view')?.id),'standings');
+ const firstYear=page.locator('#standingYears button').first();const lastYear=page.locator('#standingYears button').last();
+ assert.equal(await firstYear.getAttribute('aria-pressed'),'true');await lastYear.focus();await lastYear.press('Enter');
+ assert.equal(await lastYear.getAttribute('aria-pressed'),'true');assert.equal(await firstYear.getAttribute('aria-pressed'),'false');
+ await page.locator('[data-view="clubhouse"]').click();
  assert((await page.locator('#hubHome').textContent()).includes('Standings'));await page.locator('#allStandings').click();assert(await page.locator('#standingsSummary tr').count()===10);await page.locator('.standings-detail summary').click();assert(await page.locator('#standingsBody tr').count()===10);await page.locator('[data-view="clubhouse"]').click();await page.locator('#allMatchups').click();assert((await page.locator('#matchupList').textContent()).includes('Team'));await page.locator('[data-view="clubhouse"]').click();await page.screenshot({path:'test-results/clubhouse-desktop.png',fullPage:true});
+ await page.locator('[data-view="matchups"]').click();
+ await page.locator('#matchupWeeks [data-week="11"]').click();
+ assert.deepEqual(await page.locator('#matchupList .hub-score').first().locator('b').allTextContents(), ['—','—'], 'scheduled scores should not be displayed as 0–0');
+ await page.locator('[data-view="standings"]').click();
+ await page.locator('#standingYears button').first().click();
+ assert((await page.locator('#standingNote').textContent()).includes('current-week results may change'));
  for(const view of ['teams','players','compare','activity','standings','matchups','playoffs','draft','history']){
   await page.locator(`[data-view="${view}"]`).click();assert(await page.locator(`#${view}`).isVisible());
  }
@@ -17,6 +30,7 @@ const assert=require('node:assert/strict');
  await page.locator('[data-view="draft"]').click();await page.locator('#draftTeam').selectOption('t2');assert.equal(await page.locator('#draftPicks tbody tr').count(),1);
  await page.setViewportSize({width:390,height:844});await page.locator('[data-view="clubhouse"]').click();await page.screenshot({path:'test-results/clubhouse-mobile.png',fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'page must not overflow mobile');
+ assert((await page.locator('[data-view="matchups"]').boundingBox()).height>=44,'navigation touch target too small');
  await page.locator('#lockLeague').click();await page.locator('#unlockPanel').waitFor();assert.equal(await page.locator('main').isVisible(),false);
  await page.reload();await page.locator('#unlockPanel').waitFor();assert.equal(await page.locator('main').isVisible(),false);
  assert.equal(await page.locator('#unlockPassword').getAttribute('autocomplete'),'current-password');
