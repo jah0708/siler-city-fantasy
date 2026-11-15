@@ -93,6 +93,21 @@ jobs:
           SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
           YAHOO_LEAGUE_ID: '844486'
         run: python scripts/update_from_yahoo.py
+      - uses: actions/setup-node@v4
+        if: github.event_name != 'schedule'
+        with:
+          node-version: '22'
+      - name: Verify live clubhouse before publishing
+        if: github.event_name != 'schedule'
+        env:
+          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+        run: |
+          npm ci && npx playwright install --with-deps chromium
+          python -m http.server 8766 &
+          if ! node tests/live_smoke.cjs; then
+            git restore -- data/league-data.enc.json
+            exit 1
+          fi
       - name: Publish encrypted changes only
         if: always()
         run: |
