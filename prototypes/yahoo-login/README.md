@@ -12,7 +12,7 @@ its password, its Yahoo registration, or its scheduled import.
   with the current-season Siler City league key.
 - One-hour encrypted `Secure; HttpOnly; SameSite=Lax` host-only sessions.
 - No member Yahoo access, refresh or ID tokens retained or exposed to the page.
-- Server-side decryption of the latest existing encrypted league snapshot;
+- Server-side decryption of a separate trial-key-encrypted league snapshot;
   guarded responses are `private, no-store`. Anonymous/non-members cannot fetch it.
 - Existing navy/gold UI generated for the new same-origin host; no data files or
   secrets are copied into public build output.
@@ -72,8 +72,8 @@ They do not establish that the real registered Yahoo app accepts this flow.
    client, and whether the requested use by other members is covered. The exact
    accepted Fantasy scope is configuration, not assumed by this code.
 4. Set the values from `.env.example` as server secrets. `SESSION_KEY` is 32 random
-   bytes, base64 encoded. Enter the existing league password securely into the new
-   project's server settings; do not send it through chat or commit it.
+   bytes, base64 encoded. Set `DATA_PRIVATE_KEY` from the trial-only keypair as a Secret. The existing
+   league password stays in GitHub Actions and is never copied to the trial server.
 5. Set the verified current-season league key from the live importer. Season keys
    must be updated at rollover; there is no fallback to a previous-season grant.
 6. Enable the prototype only after configuration/permission checks. The default
@@ -95,8 +95,8 @@ This prototype is not a determination of contractual permission.
 ## Boundaries and remaining work
 
 An isolated disabled hosting project and an additional Yahoo callback are now
-prepared as recorded above. No credentials, consent settings or member
-invitations were changed. No real Yahoo round-trip has been performed. Deploying a disabled shell alone does not verify authentication.
+prepared as recorded above. Trial-only server secrets are configured without changing the working sync
+credentials. No consent settings or member invitations were changed. No real Yahoo round-trip has been performed. Deploying a disabled shell alone does not verify authentication.
 Existing shared-password access remains available at the current site during any
 pilot. The public ciphertext and old repository history are not retroactively
 hidden by adding this login option. Rate limits and a durable session store are
@@ -109,3 +109,14 @@ production follow-up work if longer sessions or greater scale are needed.
 - https://developer.yahoo.com/oauth2/guide/flows_authcode/
 - https://github.com/panva/openid-client
 - https://vercel.com/docs/functions/runtimes/node-js
+
+## Separate encrypted data channel
+
+`export-login-snapshot.yml` reads the saved snapshot using the existing Actions
+password, encrypts it to `.github/login-trial-public-key.json`, and publishes only
+ciphertext to the `login-trial-data` branch. It is independent of the working Yahoo
+import and runs after a successful main-branch sync or by manual dispatch. It
+never refreshes or modifies Yahoo tokens. Only the trial server has the private
+key, stored as the unreadable `DATA_PRIVATE_KEY` Secret. The data route checks a
+verified member session and season before serving decrypted records, with no-store
+headers. The original site password is not required on the new server.

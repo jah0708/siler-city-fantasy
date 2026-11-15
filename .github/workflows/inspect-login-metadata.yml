@@ -1,0 +1,32 @@
+name: Inspect login metadata (read only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'cryptography==46.0.4'
+      - name: Read only the saved season and league key
+        env:
+          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import os,sys,re
+          sys.path.insert(0,'scripts')
+          from secure_site import load_records
+          db=load_records(os.environ['SCFL_SITE_PASSWORD'])
+          key=db.get('hub',{}).get('leagueKey','')
+          season=str(db.get('currentSeason',''))
+          if not re.fullmatch(r'\d+\.l\.844486',key) or not re.fullmatch(r'20\d{2}',season):
+              raise SystemExit('Saved league metadata unavailable; no credentials changed.')
+          print('SCFL_LEAGUE_KEY='+key)
+          print('SCFL_SEASON='+season)
+          print('Read-only metadata check complete; no Yahoo calls or files changed.')
+          PY
