@@ -1,1 +1,1 @@
-{"version": 1, "iterations": 400000, "salt": "TQOHCOSE0bbO0pzrWfGNbg==", "nonce": "i5gMkdSEoe0AUxq5", "ciphertext": "mIFBvZKukserC4vnhuQ3xCtJsQXoXdzUAUlB6anaTSlhO5728yC+Dc7ufjsgfZoe"}
+{"version":2,"kdf":"HKDF-SHA256","salt":"YoW8k+mjBzL9izrttDoWBA==","nonce":"hNoyOXgtQnlyjmSK","ciphertext":"N02KsIx0u3cryoohTyFKwjKEzctWcADkP7GRc7AzvdtGROvH4ix+5qPhsdaM8XKt"}
