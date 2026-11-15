@@ -25,6 +25,12 @@ def games_for(week: int) -> list:
 
 
 class ManualFallbackTests(unittest.TestCase):
+    def test_unknown_cutoff_tie_does_not_award_a_point_win_by_name(self):
+        games = games_for(1)
+        games[2][1] = games[2][3]  # The fifth and sixth scores now tie at the cutoff.
+        with self.assertRaisesRegex(ValueError, 'top-half cutoff'):
+            backup.compute_standings({'1': games}, {f'Team {i}' for i in range(10)})
+
     def test_keypair_encrypted_private_key_and_manual_payload(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)

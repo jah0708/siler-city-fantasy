@@ -19,12 +19,15 @@ window.initLeagueHub = function(db) {
   const playerLink=p=>`<button class="hub-link" data-player="${esc(p.key)}">${esc(p.name)}</button>`;
   const roster=(key,week=current)=>hub.rosters?.[week]?.[key]||[];
   const season=p=>hub.playerStats?.[p.key]?.points??null;
-  const rowFor=key=>db.currentStandings.find(r=>r.name===byKey[key]?.name);
-  const displayRecord=r=>r?`${r.adjustedWins??0}–${r.adjustedLosses??0}`:'—';
+  const standingsAvailable=db.yahoo?.standingsAvailable===true;
+  // Historical snapshots can contain provisional records; never expose them as
+  // current standings when a completed-week baseline has not been verified.
+  const rowFor=key=>standingsAvailable?(db.currentStandings||[]).find(r=>r.name===byKey[key]?.name):undefined;
+  const displayRecord=r=>r?`${r.adjustedWins??0}–${r.adjustedLosses??0}${r.ties?`–${r.ties}`:''}`:'—';
   function navigate(view){document.querySelector(`.nav-btn[data-view="${view}"]`)?.click();window.scrollTo({top:0,behavior:'instant'})}
   function wirePlayers(el){el.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>showPlayer(b.dataset.player))}
   function table(headers,rows){return `<div class="card hub-table-wrap"><table class="hub-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`}
-  function scores(games){return games.length?games.map(g=>`<div class="hub-score"><small>${esc(g.status==='postevent'?'Final':g.status==='midevent'?'In progress':g.status==='saved'?'Saved results':'Scheduled')}</small>${g.teams.map(t=>`<strong>${esc(t.name)}</strong><b>${g.status==='preevent' && Number(t.points)===0 ? '—' : fmt(t.points)}</b>`).join('')}</div>`).join(''):empty('No matchup data saved for this week.')}
+  function scores(games){return games.length?games.map(g=>`<div class="hub-score"><small>${esc(g.status==='postevent'?'Final':g.status==='midevent'?'In progress':g.status==='saved'?'Saved results':'Scheduled')}</small><div class="hub-score-pair">${g.teams.slice(0,2).map((t,i)=>`${i?'<span class="hub-score-versus">vs</span>':''}<div class="hub-score-team ${i?'hub-score-away':'hub-score-home'}"><strong>${esc(t.name)}</strong><b>${g.status==='preevent' && Number(t.points)===0 ? '—' : fmt(t.points)}</b></div>`).join('')}</div></div>`).join(''):empty('No matchup data saved for this week.')}
   function moves(list){return list.length?list.map(t=>`<article class="hub-move"><div class="hub-move-head">${badge(t.type)}<small>${esc(date(Number(t.timestamp)*1000))}</small></div>${t.players.map(p=>`<p><strong>${esc(p.name)}</strong>${badge(p.type)}<span class="hub-sub">${esc(p.from||'Available pool')} → ${esc(p.to||'Available pool')}</span></p>`).join('')}</article>`).join(''):empty('No completed transactions in this snapshot.')}
   const schedule=hub.schedule||{};
   function matchupGames(week){
@@ -38,15 +41,14 @@ window.initLeagueHub = function(db) {
   }
   const activity=(hub.transactions||[]).slice().sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0));
   function renderHome(){
-    const rows=db.currentStandings||[];
+    const rows=standingsAvailable?(db.currentStandings||[]):[];
     const match=matchupGames(current), last=match.source==='schedule'?hub.sections?.schedule?.updatedAt:db.yahoo?.lastUpdated;
     $('hubHome').innerHTML=`<div class="hub-status"><i class="status-dot"></i><strong>Scoreboard updated</strong><span>${esc(date(last))}</span><span>• Automatic updates approximately every 3 hours</span></div>
     <div class="hub-intro"><article class="card hub-panel"><div class="hub-header"><div><p class="eyebrow">The scoreboard</p><h2>Week ${esc(current)} matchups</h2></div><button class="hub-btn" id="allMatchups">All weeks →</button></div><p class="hub-sub">Scores are snapshots and may change during games.</p>${scores(match.games)}${match.source==='schedule'?note('schedule'):''}</article>
-    <article class="card hub-panel"><div class="hub-header"><div><p class="eyebrow">The race</p><h2>Standings</h2></div><button class="hub-btn" id="allStandings">Full standings →</button></div><p class="hub-sub">Adjusted records include matchup wins and top-half scoring wins. Current-week results may be provisional.</p><div class="hub-summary">${rows.map(t=>`<div><span>${esc(t.rank)}. ${esc(t.name)}</span><strong>${esc(displayRecord(t))}</strong><span>${fmt(t.points)} pts</span></div>`).join('')}</div></article></div>
-    <div class="hub-grid"><article class="card hub-panel"><h3>Your team</h3><label class="hub-field">Follow a team on this device<select id="favoriteTeam">${teamOptions}</select></label><div id="favoriteSummary"></div><button class="hub-btn" id="openFavorite">Open team profile →</button></article><article class="card hub-panel"><h3>Latest league moves</h3>${moves(activity.slice(0,4))}<button class="hub-btn" id="allActivity">View activity →</button>${note('transactions')}</article></div>`;
-    $('favoriteTeam').value=favorite;
-    function update(){favorite=$('favoriteTeam').value;try{localStorage.setItem('scfl-favorite-team',favorite)}catch{} const r=rowFor(favorite);$('favoriteSummary').innerHTML=`<p><strong>${esc(displayRecord(r))}</strong> adjusted record <span class="hub-sub">${fmt(r?.points)} season points · ${roster(favorite).length} players</span></p>`;}
-    $('favoriteTeam').onchange=update;update();$('allMatchups').onclick=()=>navigate('matchups');$('allStandings').onclick=()=>navigate('standings');$('allActivity').onclick=()=>navigate('activity');$('openFavorite').onclick=()=>{$('teamPicker').value=favorite;renderTeam();navigate('teams')};
+    <article class="card hub-panel"><div class="hub-header"><div><p class="eyebrow">The race</p><h2>Standings</h2></div><button class="hub-btn" id="allStandings">Full standings →</button></div>${standingsAvailable?`<p class="hub-sub">Adjusted records include completed weeks only. They update after Yahoo marks the week final; later corrections can change results.</p><div class="hub-summary">${rows.map(t=>`<div><span>${esc(t.rank)}. ${esc(t.name)}</span><strong>${esc(displayRecord(t))}</strong><span>${fmt(t.points)} pts</span></div>`).join('')}</div>`:'<p class="hub-empty">Completed standings unavailable; retrying after results are verified.</p>'}</article></div>
+    <div class="hub-manage"><span>Make trades and roster changes on Yahoo.</span><a href="https://football.fantasysports.yahoo.com/f1/844486" target="_blank" rel="noopener noreferrer">Manage team on Yahoo ↗</a></div>
+    <div class="hub-grid hub-activity-grid"><article class="card hub-panel"><h3>Latest league moves</h3>${moves(activity.slice(0,4))}<button class="hub-btn" id="allActivity">View activity →</button>${note('transactions')}</article></div>`;
+    $('allMatchups').onclick=()=>navigate('matchups');$('allStandings').onclick=()=>window.openStandingsBreakdown();$('allActivity').onclick=()=>navigate('activity');
   }
   $('teamTools').innerHTML=select('teamPicker','Team',teamOptions)+select('rosterWeek','Roster week',rosterWeeks.map(w=>`<option value="${w}">Week ${w}</option>`).join(''));
   $('teamPicker').value=favorite;
@@ -56,7 +58,7 @@ window.initLeagueHub = function(db) {
     const points=row?.weeks||[], max=Math.max(1,...points.map(w=>w.points));
     const slots=ps.slice().sort((a,b)=>['BN','IR','IR+'].includes(a.slot)-['BN','IR','IR+'].includes(b.slot));
     $('teamContent').innerHTML=`<div class="hub-team-title">${image(team.logo,'hub-team-logo')}<div><h3>${esc(team.name)}</h3><p>${esc(team.managers.join(' · '))}</p></div></div><div class="hub-metrics">${metric('Adjusted record',displayRecord(row),'Matchup wins + top-half wins')}${metric('Season points',fmt(row?.points))}${metric('Weekly average',fmt(row?.average))}${metric('Roster alerts',ps.filter(p=>p.status).length,'Yahoo injury/status flags')}</div>
-    <article class="card hub-panel"><h3>Weekly scoring</h3><div class="hub-bars">${points.map(w=>`<div class="hub-bar" title="Week ${w.week}: ${fmt(w.points)}"><small>${fmt(w.points)}</small><i style="height:${Math.round(w.points/max*100)}px"></i><span>W${w.week}</span></div>`).join('')}</div></article><h3>Week ${esc(week)} roster</h3>
+    ${standingsAvailable?`<article class="card hub-panel"><h3>Weekly scoring</h3><div class="hub-bars">${points.map(w=>`<div class="hub-bar" title="Week ${w.week}: ${fmt(w.points)}"><small>${fmt(w.points)}</small><i style="height:${Math.round(w.points/max*100)}px"></i><span>W${w.week}</span></div>`).join('')}</div></article>`:'<p class="hub-empty">Completed standings unavailable; retrying after results are verified.</p>'}<h3>Week ${esc(week)} roster</h3>
     ${ps.length?table(['Slot','Player','NFL','Week points','Season points','Bye'],slots.map(p=>`<tr><td>${badge(p.slot)}</td><td>${image(p.image)}${playerLink(p)}${badge(p.status,true)}<span class="hub-sub">${esc(p.position)}</span></td><td>${esc(p.nflTeam)}</td><td class="num">${fmt(p.points)}</td><td class="num">${fmt(season(p))}</td><td>${esc(p.bye||'—')}</td></tr>`).join('')):empty('This roster has not been imported yet.')}${note('rosters')}<p class="hub-sub">Week points follow the selected week. Season points are from the latest season snapshot.</p>`;
     wirePlayers($('teamContent'));
   }

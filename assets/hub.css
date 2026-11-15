@@ -133,3 +133,27 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
  .hub-summary>div{grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}
  .hub-summary span:last-child{grid-column:1/-1;text-align:left}
 }
+
+/* Each matchup reads across the page, with scores grouped with their teams. */
+.hub-score{display:block;padding:11px 0;border-bottom:1px solid var(--line)}
+.hub-score small{display:block;margin-bottom:6px;text-align:center}
+.hub-score-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:start;column-gap:12px}
+.hub-score-team{display:flex;min-width:0;align-items:baseline;gap:8px}
+.hub-score-team strong{min-width:0;overflow-wrap:anywhere}
+.hub-score-team b{flex:none;font-variant-numeric:tabular-nums}
+.hub-score-home{justify-content:space-between;text-align:left}
+.hub-score-away{justify-content:space-between;flex-direction:row-reverse;text-align:right}
+.hub-score-versus{color:var(--muted);font-size:.7rem;font-weight:600;line-height:1.6;text-transform:uppercase}
+@media(max-width:480px){
+ .hub-score-pair{column-gap:7px}
+ .hub-score-team{flex-direction:column;gap:2px}
+ .hub-score-away{align-items:flex-end}
+ .hub-score-team strong{font-size:.8rem;line-height:1.25}
+}
+.nav-more-menu .nav-external{display:block;box-sizing:border-box;min-height:44px;padding:12px 16px;background:#fff;color:var(--field);font-size:.85rem;text-align:left;text-decoration:none}
+.nav-more-menu .nav-external:hover,.nav-more-menu .nav-external:focus-visible{background:#edf0f4;text-decoration:underline}
+.nav-more-menu .nav-external::after{content:' ↗'}
+#standingsBreakdown{scroll-margin-top:70px}
+.hub-manage{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 18px;padding:12px 0;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+.hub-manage a{color:var(--field);font-weight:700;text-underline-offset:3px}
+.hub-activity-grid{grid-template-columns:1fr}

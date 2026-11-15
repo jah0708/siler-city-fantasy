@@ -16,11 +16,15 @@ from urllib.request import Request, urlopen
 
 from secure_site import ENCRYPTED, load_records, store_records
 from yahoo_token import select_refresh_token, persist_refresh_token
-from manual_fallback import apply_manual_fallback
+from manual_fallback import TopHalfCutoffTie, apply_manual_fallback
 from league_hub import collect as collect_hub
 
 API_ROOT = "https://fantasysports.yahooapis.com/fantasy/v2"
 REDIRECT_URI = "https://jah0708.github.io/siler-city-fantasy/"
+
+
+class FinalResultsUnavailable(RuntimeError):
+    """No completed week can currently be verified from both sources."""
 
 
 class YahooError(RuntimeError):
@@ -171,35 +175,81 @@ def week_matchups(token: str, league_key: str, week: int) -> list:
         games.append(pair)
         statuses.append(str(first_value(matchup, "status") or "").lower())
         seen_pairs.add(keys)
-    # Yahoo can return a full set of 0-0 matches before a week starts.
-    # Do not assign ties or top-five scoring wins until at least one game begins.
-    if statuses and len(statuses) == len(games) and all(status == "preevent" for status in statuses):
+    # A complete lineup or nonzero scores do not mean the fantasy week is over.
+    # Unknown and mixed statuses must never be treated as finalized.
+    if not statuses or any(status != "postevent" for status in statuses):
+        print(f"Week {week}: Yahoo matchup status is not final; excluded from standings.")
         return []
     return games
 
 
-def standings_and_scores(token: str, league_key: str, current: int, end: int):
+def nfl_week_complete(season: int, week: int) -> bool:
+    """Fail closed unless an independent NFL scoreboard says all games are over.
+
+    A Yahoo fantasy matchup's status alone does not prove a late NFL game with
+    no rostered players has finished. Never send Yahoo credentials to this feed.
+    """
+    url = ("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?"
+           + urlencode({"dates": str(season), "seasontype": "2", "week": str(week), "limit": "100"}))
+    try:
+        data = request_json(url)
+        if int(data.get("season", {}).get("year", 0)) != season or int(data.get("week", {}).get("number", 0)) != week:
+            raise ValueError("NFL scoreboard season/week mismatch")
+        events = data.get("events")
+        # A truncated feed must not certify the week. During standard recent
+        # regular seasons at least 13 games are scheduled even with six byes;
+        # an unusual smaller slate is deliberately held for manual review.
+        if not isinstance(events, list) or len(events) < 13:
+            raise ValueError("NFL scoreboard incomplete")
+        ids = [str(event.get("id") or "") for event in events]
+        if len(set(ids)) != len(events) or not all(ids):
+            raise ValueError("NFL scoreboard event identifiers invalid")
+        completed = all(event.get("status", {}).get("type", {}).get("completed") is True for event in events)
+        print(f"Week {week}: NFL scoreboard reports {'all games complete' if completed else 'games still pending'}.")
+        return completed
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
+        print(f"::warning::Week {week}: NFL completion could not be confirmed; standings will not advance.")
+        return False
+
+
+def standings_and_scores(token: str, league_key: str, current: int, end: int, season: int | None = None):
     games_by_week, rows, latest = {}, {}, 0
     for week in range(1, min(current, end) + 1):
-        games = week_matchups(token, league_key, week)
+        try:
+            games = week_matchups(token, league_key, week)
+        except YahooError as exc:
+            if exc.code not in (429, 500, 502, 503, 504):
+                raise
+            print(f"::warning::Week {week}: Yahoo scoreboard temporarily unavailable; later weeks excluded.")
+            break
+        except (RuntimeError, OSError, ValueError, TypeError):
+            print(f"::warning::Week {week}: Yahoo scoreboard unavailable or invalid; later weeks excluded.")
+            break
         if not games:
-            if week == current:
-                continue
-            raise RuntimeError(f"Missing Yahoo scoreboard for Week {week}; existing data retained")
+            if week != current:
+                print(f"::warning::Week {week}: final Yahoo scoreboard unavailable; later weeks excluded.")
+            break
         if len(games) != 5 or len({t[0] for game in games for t in game}) != 10:
-            raise RuntimeError(f"Incomplete Yahoo scoreboard for Week {week}; existing data retained")
-        latest = week
-        games_by_week[str(week)] = [
-            [left[1], left[2], right[1], right[2]] for left, right in games
-        ]
+            print(f"::warning::Week {week}: incomplete Yahoo scoreboard; later weeks excluded.")
+            break
+        if not nfl_week_complete(season or datetime.now(timezone.utc).year, week):
+            print(f"Week {week}: final NFL game not confirmed; standings remain through Week {latest}.")
+            break
         sorted_scores = sorted(
             ((team[2], team[0]) for game in games for team in game),
             key=lambda pair: (-pair[0], pair[1]),
         )
+        if sorted_scores[4][0] == sorted_scores[5][0]:
+            print(f"::warning::Week {week}: tie at the top-half cutoff; standings remain through Week {latest} until the league rule is confirmed.")
+            break
+        latest = week
+        games_by_week[str(week)] = [[left[1], left[2], right[1], right[2]] for left, right in games]
+        print(f"Week {week}: five final Yahoo matchups included in standings.")
         winners = {key for _, key in sorted_scores[:len(sorted_scores) // 2]}
         for left, right in games:
             for team, opponent in ((left, right), (right, left)):
                 row = rows.setdefault(team[0], {"name": team[1], "weeks": []})
+                row["name"] = team[1]  # Keep the latest confirmed team name.
                 result = "W" if team[2] > opponent[2] else ("L" if team[2] < opponent[2] else "T")
                 row["weeks"].append({
                     "week": week,
@@ -208,7 +258,7 @@ def standings_and_scores(token: str, league_key: str, current: int, end: int):
                     "points": team[2],
                 })
     if latest == 0 or len(rows) != 10:
-        raise RuntimeError("No complete ten-team Yahoo data; existing records retained")
+        raise FinalResultsUnavailable("No completed ten-team week can be independently verified")
     standings = []
     for row in rows.values():
         weeks = row["weeks"]
@@ -239,12 +289,21 @@ def main() -> int:
         raise RuntimeError("YAHOO_CLIENT_SECRET is required for the server archive; no data published")
     # Validate stored history before contacting Yahoo or modifying token state.
     load_records(credential)
-    apply_manual_fallback(credential)
+    try:
+        apply_manual_fallback(credential)
+    except TopHalfCutoffTie:
+        # Do not commit an invented tiebreak, but keep Yahoo's live feed moving.
+        print("::warning::Manual fallback has an unconfigured top-half cutoff tie; skipped without changing standings.")
+    database = load_records(credential)
     try:
         token = refresh_access_token()
         key, season = find_league(token)
         current, end, name = league_metadata(token, key)
-        week, standings, matchups = standings_and_scores(token, key, current, end)
+        print(f"Yahoo league metadata: current week {current}, end week {end}.")
+        try:
+            week, standings, matchups = standings_and_scores(token, key, current, end, season)
+        except FinalResultsUnavailable:
+            week, standings, matchups = 0, None, None
     except YahooError as exc:
         if exc.code == 403 and "not authorized" in exc.description.lower():
             print("::notice::Yahoo API access is still pending. Protected site is published; next sync will retry.")
@@ -253,13 +312,26 @@ def main() -> int:
             print("::warning::Yahoo OAuth refresh token is invalid. Protected historic site will publish, but live Yahoo scores cannot import until YAHOO_REFRESH_TOKEN is renewed.")
             return 0
         raise
-    database = load_records(credential)
-    # Preserve the latest encrypted manual week until verified Yahoo scores catch up.
-    recorded = int(database.get("yahoo", {}).get("week", 0))
-    if week < recorded:
-        print(f"::notice::Yahoo returned Week {week}; preserving existing Week {recorded} snapshot.")
-        return 0
+    # Only snapshots with an explicit verification marker can be retained as
+    # confirmed. Earlier versions could have stored a live provisional week.
+    previous_yahoo = database.get("yahoo", {})
+    same_season = str(database.get("currentSeason")) == str(season)
+    confirmed_week = int(previous_yahoo.get("finalizedThrough", 0) or 0) if same_season else 0
+    recorded = int(previous_yahoo.get("week", 0) or 0)
+    preserve_manual = same_season and previous_yahoo.get("source") == "manual" and week < recorded
+    preserve_confirmed = same_season and confirmed_week > week
     database["hub"] = collect_hub(token, key, current, end, database.get("hub", {}), api)
+    if preserve_manual or preserve_confirmed:
+        print(f"::warning::Unable to reverify all weeks; retained previously confirmed standings and refreshed the live matchup feed.")
+        store_records(database, credential)
+        return 0
+    if week == 0:
+        # Keep the encrypted historical data intact, but explicitly mark the old
+        # unverified standings unavailable so the frontend cannot display them.
+        database["yahoo"] = {**previous_yahoo, "standingsAvailable": False, "finalizedThrough": 0, "week": 0}
+        print("::warning::No completed week could be verified; standings unavailable while the live matchup feed continues.")
+        store_records(database, credential)
+        return 0
     same = (
         database.get("currentSeason") == str(season)
         and database.get("currentStandings") == standings
@@ -276,6 +348,8 @@ def main() -> int:
         "matchups": matchups,
         "yahoo": {
             "source": "live",
+            "standingsAvailable": True,
+            "finalizedThrough": week,
             "leagueName": name,
             "lastUpdated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "week": week,
