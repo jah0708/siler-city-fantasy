@@ -40,17 +40,18 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
 #unlockStatus{min-height:22px;font-size:.84rem;color:#a34e48;margin:10px 0 0}
 
   </style>
+  <link rel="stylesheet" href="assets/hub.css">
 </head>
 <body class="locked">
 <section class="unlock" id="unlockPanel">
   <div class="unlock-card">
     <img src="scfl-logo.png" alt="Siler City Fantasy League logo">
     <h1>League members</h1>
-    <p>Enter the league password to view standings, scores and history.</p>
+    <p>Your league clubhouse. Rosters, matchups, moves, and every season that made the league.</p>
     <form id="unlockForm">
       <label for="unlockPassword">League password</label>
       <input id="unlockPassword" type="password" autocomplete="off" required minlength="20">
-      <button type="submit">View league results</button>
+      <button type="submit">Enter the clubhouse</button>
       <div id="unlockStatus" aria-live="polite"></div>
     </form>
   </div>
@@ -59,17 +60,25 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
   <div class="masthead"><header class="hero shell">
     <p class="eyebrow">Established 2018 · Siler City, North Carolina</p>
     <div class="brand-lockup"><img class="hero-logo" src="scfl-logo.png" alt="SCFL"><h1>Siler City<br>Fantasy League</h1></div>
-    <div class="hero-copy"><p>League standings, weekly scores, draft order, and eight seasons of history in one place.</p><span class="season-pill">2026 season</span></div>
+    <div class="hero-copy"><p>The clubhouse for matchups, rosters, league moves, and eight seasons of history.</p><span class="season-pill">2026 season</span></div>
   </header></div>
-  <nav><div class="shell"><button class="nav-btn active" data-view="standings">Standings</button><button class="nav-btn" data-view="matchups">Matchups</button><button class="nav-btn" data-view="playoffs">Playoffs</button><button class="nav-btn" data-view="draft">Draft order</button><button class="nav-btn" data-view="history">History</button></div></nav>
+  <nav><div class="shell"><button class="nav-btn active" data-view="clubhouse">Clubhouse</button><button class="nav-btn" data-view="teams">Teams</button><button class="nav-btn" data-view="players">Player pool</button><button class="nav-btn" data-view="compare">Compare</button><button class="nav-btn" data-view="activity">Activity</button><button class="nav-btn" data-view="standings">Standings</button><button class="nav-btn" data-view="matchups">Matchups</button><button class="nav-btn" data-view="playoffs">Playoffs</button><button class="nav-btn" data-view="draft">Draft room</button><button class="nav-btn" data-view="history">History</button><button class="hub-btn hub-lock" id="lockLeague">Lock</button></div></nav>
   <main class="shell">
+    <section id="clubhouse" class="view active"><div id="hubHome"></div></section>
+    <section id="teams" class="view"><div class="section-head"><div><p class="eyebrow">Inside the roster</p><h2>Team profiles</h2></div><p>Starters, bench, and the story so far.</p></div><div class="hub-tools" id="teamTools"></div><div id="teamContent"></div></section>
+    <section id="players" class="view"><div class="section-head"><div><p class="eyebrow">Scout the league</p><h2>Player pool</h2></div><p>Search the latest roster and available-player snapshot.</p></div><div class="hub-tools" id="playerTools"></div><p class="hub-sub" id="playerCount"></p><div id="playerResults"></div><div id="playerFreshness"></div></section>
+    <section id="compare" class="view"><div class="section-head"><div><p class="eyebrow">Side by side</p><h2>The matchup beyond the matchup</h2></div></div><div class="hub-tools" id="compareTools"></div><div class="hub-compare" id="compareContent"></div><p class="hub-sub">Position totals use actual season points for players currently rostered. They include points earned before trades and do not predict future performance.</p></section>
+    <section id="activity" class="view"><div class="section-head"><div><p class="eyebrow">The transaction wire</p><h2>League moves</h2></div><p>The latest 100 completed adds, drops, and trades.</p></div><div class="hub-tools" id="activityTools"></div><div class="card hub-panel" id="activityContent"></div></section>
+
     <section id="matchups" class="view"><div class="section-head"><div><p class="eyebrow">2026 scoreboard</p><h2>Weekly matchups</h2></div><p><span id="matchupSourceNote">Scores update automatically; current week may be provisional</span></p></div><div class="week-btns year-row" id="matchupWeeks"></div><article class="card match-list" id="matchupList"></article></section>
-    <section id="standings" class="view active"><div class="section-head"><div><p class="eyebrow">Season table</p><h2>Standings</h2></div><p id="standingNote">2026 results through Week 3</p></div><div class="year-row" id="standingYears"></div><p class="mobile-hint">Swipe the table to see weekly results.</p><article class="card table-wrap"><table class="standings"><thead id="standingsHead"></thead><tbody id="standingsBody"></tbody></table></article></section>
+    <section id="standings" class="view"><div class="section-head"><div><p class="eyebrow">Season table</p><h2>Standings</h2></div><p id="standingNote">2026 results through Week 3</p></div><div class="year-row" id="standingYears"></div><p class="mobile-hint">Swipe the table to see weekly results.</p><article class="card table-wrap"><table class="standings"><thead id="standingsHead"></thead><tbody id="standingsBody"></tbody></table></article></section>
     <section id="playoffs" class="view"><div class="section-head"><div><p class="eyebrow">Championship archive</p><h2>Playoffs</h2></div><p id="playoffNote">Projected from current standings</p></div><div class="year-row" id="playoffYears"></div><div class="honors" id="playoffHonors"></div><article class="card bracket-shell"><div id="playoffBracket"></div></article></section>
-    <section id="draft" class="view"><div class="section-head"><div><p class="eyebrow">Next up</p><h2>Draft order</h2></div><p>Carried forward from the workbook</p></div><article class="card"><div class="card-pad"><div class="draft" id="draftList"></div></div></article></section>
+    <section id="draft" class="view"><div class="section-head"><div><p class="eyebrow">Next up</p><h2>Draft room</h2></div><p>Draft picks and the commissioner’s next draft order.</p></div><div class="hub-tools" id="draftTools"></div><div id="draftPicks"></div><div id="draftFreshness"></div><h3>Next draft order · commissioner workbook</h3><article class="card"><div class="card-pad"><div class="draft" id="draftList"></div></div></article></section>
     <section id="history" class="view"><div class="section-head"><div><p class="eyebrow">League archive</p><h2>Season history</h2></div><p>2018–2025</p></div><div class="year-row" id="historyYears"></div><div class="grid"><article class="card champion"><span class="kicker" id="historyYearLabel"></span><strong id="historyWinner"></strong><p class="muted" id="historyMeta"></p></article><article class="card"><div class="card-pad"><span class="kicker">Top five</span><ol class="rank-list" id="historyTop"></ol></div></article></div></section>
   </main>
   <footer class="shell">Siler City Fantasy League · Historical records from the commissioner workbook · Fantasy data provided by <a href="https://sports.yahoo.com/fantasy/">Yahoo Fantasy</a></footer>
+  <dialog id="playerDialog" class="hub-dialog"><div id="playerDialogBody"></div></dialog>
+  <script src="assets/hub.js"></script>
   <script>
 
     async function unlockLeague(){
@@ -135,6 +144,7 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
     document.getElementById('draftList').innerHTML=db.draftOrder.map(x=>`<div><strong>${escapeHtml(x.name)}</strong></div>`).join('');
     function renderHistory(year){const teams=db.seasons[year]||[],p=db.playoffs[year]||{};document.getElementById('historyYearLabel').textContent=`${year} league champion`;document.getElementById('historyWinner').textContent=p.champion||'Not recorded';document.getElementById('historyMeta').textContent=p.runnerUp?`Runner-up: ${p.runnerUp}`:'Championship result not recorded in the workbook';rankRows(document.getElementById('historyTop'),teams,5);document.querySelectorAll('#historyYears .year-btn').forEach(b=>b.classList.toggle('active',b.dataset.year===year))}
     yearButtons(document.getElementById('historyYears'),renderHistory);renderHistory(years[0]);
+    window.initLeagueHub(db);
     }
     initialize().catch(err=>console.error('League access unavailable',err));
   </script>

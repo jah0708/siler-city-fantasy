@@ -38,3 +38,22 @@ Keep the registered callback exactly `https://jah0708.github.io/siler-city-fanta
 ## Test locally
 Install cryptography==46.0.4 and run: python -m unittest discover -s tests -v
 
+
+## League clubhouse
+The encrypted snapshot now includes all ten teams, weekly rosters and player points,
+season player statistics, a bounded pool of up to 200 available players ranked by
+actual season points, 100 recent completed transactions, draft picks, and schedules.
+Historical rosters are cached; the current and previous weeks are refreshed. Each
+section retains its last successful snapshot on failure and shows its own timestamp.
+No league settings or official Yahoo standings are imported. Existing custom adjusted
+standings, manual-score fallback, playoff views, and historical seasons are retained.
+Private claims, pending trades, manager emails, and account identifiers are excluded.
+
+Run `python -m unittest discover -s tests -v` for import/privacy checks. For browser
+regressions, run `npm ci`, `npx playwright install chromium`,
+`python tests/preview_fixture.py`, serve `/tmp/scfl-preview` on port 8765,
+then `mkdir -p test-results && npm run test:browser`. Fixtures are synthetic and never
+published to the league site. The workflow runs both suites before the live sync.
+
+The league password is unchanged. No password-rotation code or secret changes are
+part of this upgrade.

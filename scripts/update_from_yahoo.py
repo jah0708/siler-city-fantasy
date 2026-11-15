@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 from secure_site import ENCRYPTED, INDEX, load_records, store_records
 from yahoo_token import select_refresh_token, persist_refresh_token
 from manual_fallback import apply_manual_fallback
+from league_hub import collect as collect_hub
 
 API_ROOT = "https://fantasysports.yahooapis.com/fantasy/v2"
 REDIRECT_URI = "https://jah0708.github.io/siler-city-fantasy/"
@@ -259,13 +260,14 @@ def main() -> int:
     if week < recorded:
         print(f"::notice::Yahoo returned Week {week}; preserving existing Week {recorded} snapshot.")
         return 0
+    database["hub"] = collect_hub(token, key, current, end, database.get("hub", {}), api)
     same = (
         database.get("currentSeason") == str(season)
         and database.get("currentStandings") == standings
         and database.get("matchups") == matchups
         and database.get("yahoo", {}).get("leagueName") == name
     )
-    if same and ENCRYPTED.exists() and 'id="unlockPanel"' in INDEX.read_text(encoding="utf-8"):
+    if same and not database.get("hub") and ENCRYPTED.exists() and 'id="unlockPanel"' in INDEX.read_text(encoding="utf-8"):
         print(f"Yahoo results unchanged through Week {week}; no new commit.")
         return 0
     database.update({
