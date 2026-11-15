@@ -1,0 +1,47 @@
+name: Yahoo sign-in prototype checks
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'prototypes/yahoo-login/**'
+      - '.github/workflows/yahoo-login-prototype.yml'
+permissions:
+  contents: read
+jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test OAuth, membership and encrypted data
+        working-directory: prototypes/yahoo-login
+        run: npm ci && npm test && npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare synthetic browser data
+        run: |
+          python -m pip install 'cryptography==46.0.4'
+          python tests/preview_fixture.py
+          python - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          from secure_site import decrypt_records
+          payload=json.loads(Path('/tmp/scfl-preview/data/league-data.enc.json').read_text())
+          Path('/tmp/scfl-trial-fixture.json').write_text(json.dumps(decrypt_records(payload,'local-preview-only-password-2026')))
+          PY
+      - name: Check trial UI with synthetic identities
+        run: |
+          npm ci && npx playwright install --with-deps chromium
+          mkdir -p test-results
+          python -m http.server 8767 --directory prototypes/yahoo-login/public &
+          node prototypes/yahoo-login/tests/browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yahoo-login-preview
+          path: test-results/yahoo-signin-mobile.png

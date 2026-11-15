@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
+import {baseEnv,encryptedFixture} from './fixtures.mjs';
+import {readSettings,seal,unseal,cookie,containsLeague,decryptSnapshot} from '../lib/security.mjs';
+const key=randomBytes(32);
+test('login is disabled unless configured deliberately',()=>{assert.equal(readSettings({}).enabled,false);assert.throws(()=>readSettings({...baseEnv,APP_ORIGIN:'http://trial.example'}));assert.throws(()=>readSettings({...baseEnv,SCFL_LEAGUE_KEY:'999.l.other'}));assert.throws(()=>readSettings({...baseEnv,YAHOO_SCOPES:'openid'}));});
+test('encrypted sessions reject tamper, expiry, wrong keys and wrong purpose',async()=>{const c=await seal({subject:'private-user'},key,'member',3600);assert(!c.includes('private-user'));assert.equal((await unseal(c,key,'member')).subject,'private-user');assert.equal(await unseal(c,key,'oauth'),null);assert.equal(await unseal(c,randomBytes(32),'member'),null);assert.equal(await unseal(c.slice(0,-8)+'tampered',key,'member'),null);assert.equal(await unseal(await seal({},key,'member',-1),key,'member'),null);});
+test('membership compares exact user-scoped league key, not matching names or IDs',()=>{assert(containsLeague({users:[{games:[{leagues:[{league:[{league_key:'999.l.844486'}]}]}]}]},'999.l.844486'));assert(!containsLeague({league:{name:'Siler City',league_id:'844486',league_key:'998.l.844486'}},'999.l.844486'));});
+test('duplicate authentication cookies rejected',()=>{assert.equal(cookie(new Request('https://trial.example',{headers:{cookie:'abc=1; abc=2'}}),'abc'),null);});
+test('server decrypts existing Python-format snapshot and rejects wrong password',async()=>{const {db,payload}=encryptedFixture();assert.deepEqual(await decryptSnapshot(payload,baseEnv.SCFL_SITE_PASSWORD),db);await assert.rejects(decryptSnapshot(payload,'incorrect'));});
