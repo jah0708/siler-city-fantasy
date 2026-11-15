@@ -217,5 +217,55 @@ def collect(token, league_key, current, end, previous, api):
             raise ValueError('No schedule')
         return result
     section('schedule', schedule)
+
+    def playoffs():
+        # Yahoo controls the actual bracket. Custom adjusted standings can show
+        # a qualification picture, but must not invent Yahoo's final seeding.
+        settings = get(f'league/{league_key}/settings')
+        uses = value(settings, 'uses_playoff')
+        start = value(settings, 'playoff_start_week')
+        flag = str(uses).lower() if uses is not None else ''
+        if flag in ('0', 'false'):
+            return {'enabled': False, 'startWeek': None, 'endWeek': end,
+                    'teamsCount': 0, 'weeks': {}}
+        if flag not in ('1', 'true') and not (not flag and start is not None):
+            raise ValueError('Yahoo playoff settings unavailable')
+        start = int(start)
+        count = int(value(settings, 'num_playoff_teams'))
+        if not 1 <= start <= end or not 2 <= count <= len(keys):
+            raise ValueError('Invalid Yahoo playoff settings')
+        weeks = {}
+        old_weeks = previous.get('playoffs', {}).get('weeks', {})
+        for week in range(start, min(current, end) + 1):
+            data = get(f'league/{league_key}/scoreboard;week={week}')
+            games, seen = [], set()
+            for matchup in entities(data, 'matchup'):
+                raw_playoff = str(value(matchup, 'is_playoffs', '')).lower()
+                raw_consolation = str(value(matchup, 'is_consolation', '')).lower()
+                pair = []
+                for team in entities(matchup, 'team'):
+                    pair.append({'key': value(team, 'team_key'), 'name': value(team, 'name', ''),
+                                 'points': num(value(value(team, 'team_points', {}), 'total'))})
+                if len(pair) != 2 or any(not t['key'] or not t['name'] for t in pair):
+                    continue
+                identity = tuple(sorted(t['key'] for t in pair))
+                if identity[0] == identity[1] or identity in seen:
+                    continue
+                seen.add(identity)
+                consolation = (True if raw_consolation in ('1', 'true') else
+                               False if raw_consolation in ('0', 'false') else None)
+                playoff_flag = ('1' if raw_playoff in ('1', 'true') else
+                                '0' if raw_playoff in ('0', 'false') else None)
+                games.append({'teams': pair, 'status': value(matchup, 'status', ''),
+                              'playoffs': playoff_flag,
+                              'isConsolation': consolation,
+                              'winnerKey': value(matchup, 'winner_team_key')})
+            if len(games) < len(old_weeks.get(str(week), [])):
+                raise ValueError('Previously published postseason matchups missing')
+            if games:
+                weeks[str(week)] = games
+        return {'enabled': True, 'startWeek': start, 'endWeek': end,
+                'teamsCount': count, 'weeks': weeks}
+    section('playoffs', playoffs)
     print('League hub imported: ' + ', '.join(f'{k}={len(hub.get(k, []))}' for k in ['teams','rosters','playerStats','available','transactions','draft','schedule']))
     return hub

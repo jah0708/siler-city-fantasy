@@ -157,3 +157,13 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
 .hub-manage{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 18px;padding:12px 0;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
 .hub-manage a{color:var(--field);font-weight:700;text-underline-offset:3px}
 .hub-activity-grid{grid-template-columns:1fr}
+
+/* The playoff race stays readable before and during the postseason. */
+.playoff-race,.playoff-games{margin:0 0 24px;padding-top:12px;border-top:2px solid var(--field)}
+.playoff-race h3,.playoff-games h3{font:700 1.25rem Georgia,serif;margin:0 0 6px}
+.playoff-race-rows>div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.88rem;font-variant-numeric:tabular-nums}
+.playoff-race-rows>div span:last-child{color:var(--muted)}
+.playoff-weeks{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 24px}
+.playoff-week h4{font:700 1rem Georgia,serif;margin:12px 0 4px}
+
+.playoff-cutoff{margin:0;padding:7px 0;border-bottom:2px solid var(--gold);color:var(--muted);font-size:.75rem;font-weight:700}
