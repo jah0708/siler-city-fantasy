@@ -167,3 +167,12 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
 .playoff-week h4{font:700 1rem Georgia,serif;margin:12px 0 4px}
 
 .playoff-cutoff{margin:0;padding:7px 0;border-bottom:2px solid var(--gold);color:var(--muted);font-size:.75rem;font-weight:700}
+
+/* Keep every primary destination visible within the mobile viewport. */
+@media(max-width:760px){
+ nav .shell{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(50px,auto)}
+ nav .shell>.nav-btn,nav .shell>.nav-btn.nav-primary:not(.active){min-width:0;max-width:100%;padding-inline:2px;text-align:center;font-size:clamp(.68rem,2.9vw,.77rem)}
+ nav .shell>.nav-more{min-width:50px;margin-left:0}
+ nav .shell>.nav-more>summary{min-height:44px;padding-inline:3px;font-size:clamp(.68rem,2.9vw,.77rem)}
+ nav .shell>.nav-more>summary::after{margin-left:3px}
+}
