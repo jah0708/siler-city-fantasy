@@ -1,0 +1,33 @@
+name: Export encrypted login trial snapshot
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Update Yahoo fantasy results (encrypted)']
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: scfl-login-trial-export
+  cancel-in-progress: false
+jobs:
+  export:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'cryptography==46.0.4'
+      - name: Export separate ciphertext without modifying the live sync
+        env:
+          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          GH_EXPORT_TOKEN: ${{ github.token }}
+        run: python scripts/export_login_snapshot.py
