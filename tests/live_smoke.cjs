@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');
   await page.goto('http://127.0.0.1:8766');
   await page.locator('#unlockPassword').fill(process.env.SCFL_SITE_PASSWORD);
   await page.locator('#unlockForm button').click();
-  await page.locator('#hubHome .hub-feature').waitFor();
+  await page.locator('#hubHome #allMatchups').waitFor();
   assert.equal(await page.locator('#favoriteTeam option').count(),10);
   for(const view of ['teams','players','compare','activity','standings','matchups','playoffs','draft','history']){
    await page.locator(`[data-view="${view}"]`).click();
