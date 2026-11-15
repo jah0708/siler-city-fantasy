@@ -1,10 +1,9 @@
-/* Private league dashboard: all data arrives only after browser decryption. */
+/* Private league dashboard: data arrives through the authenticated server. */
 window.initLeagueHub = function(db) {
   'use strict';
   const hub=db.hub||{}, teams=hub.teams||[], byKey=Object.fromEntries(teams.map(t=>[t.key,t]));
   const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=v=>v==null?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:2,minimumFractionDigits:2});
-  const num=v=>Number.isFinite(Number(v))?Number(v):0;
   const safeURL=v=>{try{const u=new URL(v);return u.protocol==='https:'?esc(u.href):''}catch{return ''}};
   const image=(url,cls='hub-portrait')=>safeURL(url)?`<img loading="lazy" class="${cls}" src="${safeURL(url)}" alt="">`:'';
   const empty=msg=>`<div class="hub-empty">${esc(msg)}</div>`;
@@ -39,9 +38,9 @@ window.initLeagueHub = function(db) {
   }
   const activity=(hub.transactions||[]).slice().sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0));
   function renderHome(){
-    const rows=db.currentStandings||[], last=hub.sections?.schedule?.updatedAt||db.yahoo?.lastUpdated;
-    const match=matchupGames(current);
-    $('hubHome').innerHTML=`<div class="hub-status"><i class="status-dot"></i><strong>Yahoo snapshot</strong><span>${esc(date(last))}</span><span>• Automatic updates approximately every 3 hours</span></div>
+    const rows=db.currentStandings||[];
+    const match=matchupGames(current), last=match.source==='schedule'?hub.sections?.schedule?.updatedAt:db.yahoo?.lastUpdated;
+    $('hubHome').innerHTML=`<div class="hub-status"><i class="status-dot"></i><strong>Scoreboard updated</strong><span>${esc(date(last))}</span><span>• Automatic updates approximately every 3 hours</span></div>
     <div class="hub-intro"><article class="card hub-panel"><div class="hub-header"><div><p class="eyebrow">The scoreboard</p><h2>Week ${esc(current)} matchups</h2></div><button class="hub-btn" id="allMatchups">All weeks →</button></div><p class="hub-sub">Scores are snapshots and may change during games.</p>${scores(match.games)}${match.source==='schedule'?note('schedule'):''}</article>
     <article class="card hub-panel"><div class="hub-header"><div><p class="eyebrow">The race</p><h2>Standings</h2></div><button class="hub-btn" id="allStandings">Full standings →</button></div><p class="hub-sub">Adjusted records include matchup wins and top-half scoring wins. Current-week results may be provisional.</p><div class="hub-summary">${rows.map(t=>`<div><span>${esc(t.rank)}. ${esc(t.name)}</span><strong>${esc(displayRecord(t))}</strong><span>${fmt(t.points)} pts</span></div>`).join('')}</div></article></div>
     <div class="hub-grid"><article class="card hub-panel"><h3>Your team</h3><label class="hub-field">Follow a team on this device<select id="favoriteTeam">${teamOptions}</select></label><div id="favoriteSummary"></div><button class="hub-btn" id="openFavorite">Open team profile →</button></article><article class="card hub-panel"><h3>Latest league moves</h3>${moves(activity.slice(0,4))}<button class="hub-btn" id="allActivity">View activity →</button>${note('transactions')}</article></div>`;
@@ -80,9 +79,7 @@ window.initLeagueHub = function(db) {
   $('draftTools').innerHTML=select('draftTeam','Team','<option value="">All teams</option>'+teamOptions)+select('draftRound','Round','<option value="">All rounds</option>'+[...new Set((hub.draft||[]).map(p=>p.round))].sort((a,b)=>a-b).map(r=>`<option value="${esc(r)}">Round ${esc(r)}</option>`).join(''));
   function renderDraft(){const picks=(hub.draft||[]).filter(p=>(!$('draftTeam').value||p.teamKey===$('draftTeam').value)&&(!$('draftRound').value||String(p.round)===$('draftRound').value));$('draftPicks').innerHTML=picks.length?table(['Pick','Round','Player','Position','Team'],picks.map(p=>`<tr><td>${esc(p.pick)}</td><td>${esc(p.round)}</td><td><strong>${esc(p.name)}</strong></td><td>${badge(p.position)}</td><td>${esc(byKey[p.teamKey]?.name||'Unknown team')}</td></tr>`).join('')):empty('No draft picks available for these filters.');$('draftFreshness').innerHTML=note('draft');}
   $('draftTeam').onchange=renderDraft;$('draftRound').onchange=renderDraft;renderDraft();
-  $('compareTools').innerHTML=select('compareA','First team',teamOptions)+select('compareB','Second team',teamOptions);if(teams[1])$('compareB').value=teams[1].key;
-  function renderCompare(){const keys=[$('compareA').value,$('compareB').value];$('compareContent').innerHTML=keys.map(key=>{const t=byKey[key];if(!t)return empty('Team comparison awaits the next sync.');const ps=roster(key),r=rowFor(key),total=ps.reduce((a,p)=>a+num(season(p)),0);return `<article class="card hub-panel"><h3>${esc(t.name)}</h3><p>${esc(displayRecord(r))} adjusted · ${fmt(r?.points)} team points</p>${['QB','RB','WR','TE','K','DEF'].map(pos=>{const group=ps.filter(p=>p.position.split(',').includes(pos)),score=group.reduce((a,p)=>a+num(season(p)),0);return `<div class="hub-position"><strong><span>${pos} · ${group.length} players</span><span>${fmt(score)}</span></strong><i style="width:${total?Math.max(1,score/total*100):0}%"></i><span class="hub-sub">${group.map(p=>esc(p.name)).join(', ')||'No players'}</span></div>`}).join('')}</article>`}).join('');}
-  $('compareA').onchange=renderCompare;$('compareB').onchange=renderCompare;renderCompare();renderHome();
+  renderHome();
   // Broaden the existing scoreboard to include scheduled weeks without changing custom standings.
   const weeks=[...new Set([...Object.keys(db.matchups||{}),...Object.keys(schedule)])].sort((a,b)=>a-b);
   $('matchupWeeks').innerHTML=weeks.map(w=>`<button class="year-btn" data-week="${esc(w)}">Week ${esc(w)}</button>`).join('');

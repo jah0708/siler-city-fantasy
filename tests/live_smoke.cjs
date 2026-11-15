@@ -13,11 +13,12 @@ const assert=require('node:assert/strict');
   await page.goto('http://127.0.0.1:8766');
   await page.locator('#hubHome #allMatchups').waitFor();
   assert.equal(await page.locator('#favoriteTeam option').count(),10);
-  for(const view of ['teams','players','compare','activity','standings','matchups','playoffs','draft','history']){
-   await page.locator(`[data-view="${view}"]`).click();
+  const openView=async view=>{if(['players','activity','playoffs','draft','history'].includes(view))await page.locator('.nav-more > summary').click();await page.locator(`[data-view="${view}"]`).click()};
+ for(const view of ['teams','players','activity','standings','matchups','playoffs','draft','history']){
+   await openView(view);
    assert(await page.locator(`#${view}`).isVisible(),view+' view did not open');
   }
-  await page.locator('[data-view="players"]').click();
+  await openView('players');
   assert((await page.locator('#playerResults tbody tr').count())>=200,'Player import unexpectedly small');
   const stats=await page.locator('#playerResults td.num').allTextContents();
   assert(stats.some(s=>s!=='—'),'Season fantasy points missing');
@@ -27,7 +28,7 @@ const assert=require('node:assert/strict');
   await page.locator('[data-view="teams"]').click();
   assert((await page.locator('#teamContent tbody tr').count())>=10,'Current roster missing');
   assert((await page.locator('#teamContent td.num').allTextContents()).some(s=>s!=='—'),'Roster points missing');
-  await page.locator('[data-view="draft"]').click();assert((await page.locator('#draftPicks tbody tr').count())>=100,'Draft results missing');
+  await openView('draft');assert((await page.locator('#draftPicks tbody tr').count())>=100,'Draft results missing');
   await page.locator('[data-view="clubhouse"]').click();
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile page overflow');
   assert.deepEqual(errors,[]);
