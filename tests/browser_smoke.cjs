@@ -18,6 +18,7 @@ const assert=require('node:assert/strict');
  await page.locator('#matchupWeeks [data-week="11"]').click();
  assert.deepEqual(await page.locator('#matchupList .hub-score').first().locator('b').allTextContents(), ['—','—'], 'scheduled scores should not be displayed as 0–0');
  await page.locator('[data-view="standings"]').click();
+ await page.locator('#standingYears button').first().click();
  assert((await page.locator('#standingNote').textContent()).includes('current-week results may change'));
  for(const view of ['teams','players','compare','activity','standings','matchups','playoffs','draft','history']){
   await page.locator(`[data-view="${view}"]`).click();assert(await page.locator(`#${view}`).isVisible());
