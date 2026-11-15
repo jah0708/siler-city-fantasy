@@ -85,11 +85,6 @@ jobs:
           python-version: '3.12'
       - name: Install cryptography
         run: python -m pip install 'cryptography==46.0.4'
-      - name: Migrate retired password storage without Yahoo calls
-        env:
-          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
-          LEGACY_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
-        run: python scripts/migrate_site_storage.py
       - name: Prepare encrypted manual fallback key
         env:
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
@@ -129,9 +124,6 @@ jobs:
           fi
           git add index.html
           git add .github/league-archive.enc.json
-          if git ls-files --error-unmatch data/league-data.enc.json >/dev/null 2>&1; then
-            git add -u -- data/league-data.enc.json
-          fi
           if [ -f .github/fallback-public-key.json ]; then
             git add .github/fallback-public-key.json .github/fallback-key.enc.json
           fi

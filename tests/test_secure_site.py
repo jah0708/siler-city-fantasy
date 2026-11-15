@@ -61,6 +61,10 @@ class PrivacyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             secure_site.store_records({"seasons": {"2018": []}}, PASSWORD)
 
+    def test_regular_workflows_do_not_depend_on_the_retired_shared_password(self):
+        for workflow in (secure_site.ROOT/'.github/workflows').glob('*.yml'):
+            self.assertNotIn('SCFL_SITE_PASSWORD',workflow.read_text(),workflow.name)
+
 
 class YahooTests(unittest.TestCase):
     def test_adjusted_wins_and_points(self):
