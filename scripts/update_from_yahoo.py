@@ -14,7 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from secure_site import ENCRYPTED, INDEX, load_records, store_records
+from secure_site import ENCRYPTED, load_records, store_records
 from yahoo_token import select_refresh_token, persist_refresh_token
 from manual_fallback import apply_manual_fallback
 from league_hub import collect as collect_hub
@@ -234,18 +234,12 @@ def standings_and_scores(token: str, league_key: str, current: int, end: int):
 
 
 def main() -> int:
-    password = os.getenv("SCFL_SITE_PASSWORD", "")
-    if len(password) < 20:
-        raise RuntimeError(
-            "Set SCFL_SITE_PASSWORD (20+ characters) in GitHub Actions secrets; no data published"
-        )
-    # Protect the existing league records as soon as the site password is supplied.
-    # This does not require Yahoo to finish provisioning API access.
-    if not ENCRYPTED.exists() or 'id="unlockPanel"' not in INDEX.read_text(encoding="utf-8"):
-        previous = load_records(password)
-        store_records(previous, password)
-        print("Encrypted historical league records; site is ready for private access.")
-    apply_manual_fallback(password)
+    credential = os.getenv("YAHOO_CLIENT_SECRET", "")
+    if len(credential) < 20:
+        raise RuntimeError("YAHOO_CLIENT_SECRET is required for the server archive; no data published")
+    # Validate stored history before contacting Yahoo or modifying token state.
+    load_records(credential)
+    apply_manual_fallback(credential)
     try:
         token = refresh_access_token()
         key, season = find_league(token)
@@ -259,7 +253,7 @@ def main() -> int:
             print("::warning::Yahoo OAuth refresh token is invalid. Protected historic site will publish, but live Yahoo scores cannot import until YAHOO_REFRESH_TOKEN is renewed.")
             return 0
         raise
-    database = load_records(password)
+    database = load_records(credential)
     # Preserve the latest encrypted manual week until verified Yahoo scores catch up.
     recorded = int(database.get("yahoo", {}).get("week", 0))
     if week < recorded:
@@ -272,7 +266,7 @@ def main() -> int:
         and database.get("matchups") == matchups
         and database.get("yahoo", {}).get("leagueName") == name
     )
-    if same and not database.get("hub") and ENCRYPTED.exists() and 'id="unlockPanel"' in INDEX.read_text(encoding="utf-8"):
+    if same and not database.get("hub") and ENCRYPTED.exists():
         print(f"Yahoo results unchanged through Week {week}; no new commit.")
         return 0
     database.update({
@@ -287,7 +281,7 @@ def main() -> int:
             "week": week,
         },
     })
-    store_records(database, password)
+    store_records(database, credential)
     print(f"Updated encrypted results through Week {week} for {len(standings)} teams.")
     return 0
 

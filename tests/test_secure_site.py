@@ -31,47 +31,31 @@ class PrivacyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             secure_site.encrypt_records({"x": 1}, "too-easy")
 
-    def test_real_site_converts_without_plaintext(self):
-        html = secure_site.INDEX.read_text(encoding="utf-8")
-        if 'id="unlockPanel"' in html:
-            self.assertNotIn('id="league-data"', html)
-            self.assertEqual(secure_site.protected_html(html), html)
-            return
-        self.assertIn('id="league-data"', html)
-        transformed = secure_site.protected_html(html)
-        self.assertIn('body class="locked"', transformed)
-        self.assertIn('id="unlockPanel"', transformed)
-        self.assertIn('id="unlockPassword"', transformed)
-        self.assertNotIn('id="league-data"', transformed)
-        self.assertIn("db.yahoo?.week", transformed)
-        self.assertIn("Fantasy data provided by", transformed)
-        self.assertIn("matchWeeks", transformed)
-        self.assertEqual(secure_site.protected_html(transformed), transformed)
+    def test_member_frontend_and_old_link_have_no_password_gate(self):
+        redirect=(secure_site.ROOT/'index.html').read_text()
+        page=(secure_site.ROOT/'web/league.html').read_text()
+        self.assertIn('https://siler-city-login-trial.vercel.app/',redirect)
+        self.assertIn("location.replace('https://siler-city-login-trial.vercel.app/')",redirect)
+        self.assertNotIn('location.search',redirect)
+        for html in [redirect,page]:
+            self.assertNotIn('id="league-data"',html)
+            self.assertNotIn('id="unlockPassword"',html)
+            self.assertNotIn('league-data.enc.json',html)
+        self.assertIn("fetch('/api/league'",page)
+        self.assertIn('Sign in with Yahoo',page)
+        self.assertNotIn('Use the current league site',page)
 
-    def test_atomic_encrypted_store_with_synthetic_html(self):
-        legacy = """<!doctype html>
-<html><head><style>
-  </style></head>
-<body><main>League</main><footer>Siler City Fantasy League · League records sourced from the commissioner workbook</footer>
-<script id="league-data" type="application/json">{"seasons":{"2018":[{"name":"Old Team"}]},"currentStandings":[{"name":"Secret Team"}]}</script>
-<script>
-    const db=JSON.parse(document.getElementById('league-data').textContent);
-yearButtons(document.getElementById('matchupWeeks'),renderMatchups,['1','2','3']);renderMatchups('3');
-  </script>
-</body>
-</html>"""
+    def test_atomic_server_archive_does_not_rewrite_the_frontend(self):
+        records={'seasons':{'2018':[{'name':'Old Team'}]},'currentStandings':[{'name':'Secret Team'}]}
+        original=(secure_site.ROOT/'index.html').read_text()
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            index = root / "index.html"
-            encrypted = root / "data" / "league-data.enc.json"
-            index.write_text(legacy, encoding="utf-8")
-            with patch.object(secure_site, "INDEX", index), patch.object(secure_site, "ENCRYPTED", encrypted):
-                records = secure_site.load_records(PASSWORD)
-                secure_site.store_records(records, PASSWORD)
-                self.assertEqual(secure_site.load_records(PASSWORD), records)
-                self.assertNotIn("Old Team", index.read_text(encoding="utf-8"))
-                self.assertNotIn("Secret Team", encrypted.read_text(encoding="utf-8"))
-                self.assertIn("unlockPanel", index.read_text(encoding="utf-8"))
+            encrypted=Path(folder)/'archive.enc.json'
+            with patch.object(secure_site,'ENCRYPTED',encrypted):
+                secure_site.store_records(records,PASSWORD)
+                self.assertEqual(secure_site.load_records(PASSWORD),records)
+                self.assertNotIn('Secret Team',encrypted.read_text())
+                self.assertEqual(json.loads(encrypted.read_text())['version'],2)
+        self.assertEqual((secure_site.ROOT/'index.html').read_text(),original)
 
     def test_incomplete_data_is_never_published(self):
         with self.assertRaises(ValueError):
@@ -130,23 +114,21 @@ class YahooTests(unittest.TestCase):
             index = Path(tmp) / "index.html"
             index.write_text("<!doctype html>not yet protected", encoding="utf-8")
             encrypted = Path(tmp) / "data" / "league-data.enc.json"
-            with patch.dict("os.environ", {"SCFL_SITE_PASSWORD": PASSWORD}), \
-                patch.object(yahoo, "INDEX", index), \
+            with patch.dict("os.environ", {"YAHOO_CLIENT_SECRET": PASSWORD}), \
                 patch.object(yahoo, "ENCRYPTED", encrypted), \
                 patch.object(yahoo, "load_records", return_value={"seasons": {"2018": [{}]}, "currentStandings": [{}]}), \
                 patch.object(yahoo, "store_records") as store, \
                 patch.object(yahoo, "apply_manual_fallback", return_value=False), \
                 patch.object(yahoo, "refresh_access_token", side_effect=yahoo.YahooError(400, "Invalid refresh token")):
                 self.assertEqual(yahoo.main(), 0)
-                store.assert_called_once()
+                store.assert_not_called()
 
     def test_unexpected_yahoo_oauth_error_remains_fatal(self):
         with tempfile.TemporaryDirectory() as tmp:
             index = Path(tmp) / "index.html"
             index.write_text("<!doctype html>not yet protected", encoding="utf-8")
             encrypted = Path(tmp) / "data" / "league-data.enc.json"
-            with patch.dict("os.environ", {"SCFL_SITE_PASSWORD": PASSWORD}), \
-                patch.object(yahoo, "INDEX", index), \
+            with patch.dict("os.environ", {"YAHOO_CLIENT_SECRET": PASSWORD}), \
                 patch.object(yahoo, "ENCRYPTED", encrypted), \
                 patch.object(yahoo, "load_records", return_value={"seasons": {"2018": [{}]}, "currentStandings": [{}]}), \
                 patch.object(yahoo, "store_records") as store, \
@@ -154,7 +136,7 @@ class YahooTests(unittest.TestCase):
                 patch.object(yahoo, "refresh_access_token", side_effect=yahoo.YahooError(400, "Unknown Yahoo error")):
                 with self.assertRaises(yahoo.YahooError):
                     yahoo.main()
-                store.assert_called_once()
+                store.assert_not_called()
 
 
 

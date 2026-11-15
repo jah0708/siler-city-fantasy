@@ -6,9 +6,11 @@ const assert=require('node:assert/strict');
  try {
   const page=await browser.newPage({viewport:{width:390,height:844}}), errors=[];
   page.on('pageerror',e=>errors.push(e.message));
+  // Decrypt only in runner memory. Browser API fixture checks rendering; Yahoo
+  // identity, session cryptography and denial are covered by the server tests.
+  const db=JSON.parse(require('node:child_process').execFileSync('python',['-c',"import os,json,sys;sys.path.insert(0,'scripts');from secure_site import load_records;print(json.dumps(load_records(os.environ['YAHOO_CLIENT_SECRET'])))"],{encoding:'utf8',maxBuffer:8_000_000}));
+  await page.route('**/api/league',route=>route.fulfill({json:db}));
   await page.goto('http://127.0.0.1:8766');
-  await page.locator('#unlockPassword').fill(process.env.SCFL_SITE_PASSWORD);
-  await page.locator('#unlockForm button').click();
   await page.locator('#hubHome #allMatchups').waitFor();
   assert.equal(await page.locator('#favoriteTeam option').count(),10);
   for(const view of ['teams','players','compare','activity','standings','matchups','playoffs','draft','history']){
@@ -29,6 +31,6 @@ const assert=require('node:assert/strict');
   await page.locator('[data-view="clubhouse"]').click();
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile page overflow');
   assert.deepEqual(errors,[]);
-  console.log('PASS: real encrypted league data unlocked; all ten views render; roster, season stats and draft populated; mobile width valid.');
+  console.log('PASS: server archive decrypted in runner memory; all ten views render; roster, season stats and draft populated; mobile width valid.');
  } finally {await browser.close()}
 })().catch(()=>{console.error('Live clubhouse verification failed. See the named assertion in local reproduction; private page content is not logged.');process.exit(1)});

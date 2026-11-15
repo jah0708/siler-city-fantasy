@@ -28,6 +28,6 @@ jobs:
       - run: python -m pip install 'cryptography==46.0.4'
       - name: Export separate ciphertext without modifying the live sync
         env:
-          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           GH_EXPORT_TOKEN: ${{ github.token }}
         run: python scripts/export_login_snapshot.py

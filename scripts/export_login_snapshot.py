@@ -30,7 +30,7 @@ def encrypt_snapshot(records,public):
             'salt':enc(salt),'nonce':enc(nonce),'ciphertext':enc(AESGCM(aes).encrypt(nonce,clear,AAD))}
 
 def main():
-    records=load_records(os.environ['SCFL_SITE_PASSWORD'])
+    records=load_records(os.environ['YAHOO_CLIENT_SECRET'])
     public=json.loads((ROOT/'.github/login-trial-public-key.json').read_text())
     payload=encrypt_snapshot(records,public)
     repo=os.environ['GITHUB_REPOSITORY']
@@ -54,6 +54,6 @@ def main():
     body={'message':'Refresh encrypted login-trial snapshot','branch':BRANCH,'content':enc(raw)}
     if previous:body['sha']=previous['sha']
     api('/contents/snapshot.enc.json','PUT',body)
-    print('Published separate trial ciphertext. Existing site, password and Yahoo tokens were not modified.')
+    print('Published member-site ciphertext. No shared password or Yahoo token changes.')
 
 if __name__=='__main__':main()

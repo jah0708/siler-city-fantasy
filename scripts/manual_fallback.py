@@ -1,8 +1,8 @@
 """Encrypted hardcoded weekly-score fallback for a public GitHub Pages repository.
 
 All manual input is encrypted to an X25519 public key before being committed.
-The corresponding private key is encrypted with SCFL_SITE_PASSWORD by GitHub
-Actions. Only a GitHub Actions runner with that secret can apply a manual update.
+The corresponding private key is encrypted using a separate-purpose key derived
+from the server credential. The retired league password is not accepted.
 
 The resulting complete league snapshot is encrypted as usual for the website.
 """
@@ -21,10 +21,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
-from secure_site import ROOT, load_records, store_records
+from secure_site import ROOT, load_records, store_records, server_key
 
 PUBLIC_KEY = ROOT / ".github" / "fallback-public-key.json"
 PRIVATE_KEY = ROOT / ".github" / "fallback-key.enc.json"
@@ -36,10 +35,9 @@ MANUAL_SOURCES = (
     (SUPPLEMENTAL_FILE, {"5", "6", "7"}),
     (WEEK_8_9_FILE, {"8", "9"}),
 )
-A_KEY = b"scfl-manual-private-v1"
+A_KEY = b"scfl-manual-private-v2"
 A_DATA = b"scfl-manual-score-data-v1"
 INFO = b"scfl-fallback-hkdf-v1"
-ITERATIONS = 400_000
 
 
 def enc(value: bytes) -> str:
@@ -50,49 +48,46 @@ def dec(value: str) -> bytes:
     return base64.b64decode(value, validate=True)
 
 
-def password_key(password: str, salt: bytes) -> bytes:
-    if len(password) < 20:
-        raise RuntimeError("SCFL_SITE_PASSWORD must contain at least 20 characters")
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITERATIONS)
-    return kdf.derive(password.encode("utf-8"))
+def private_key_key(secret: str, salt: bytes) -> bytes:
+    return server_key(secret, salt, A_KEY)
 
 
-def generate_key_files(password: str) -> bool:
+def generate_key_files(credential: str) -> bool:
     """Create a stable public key and encrypted private key on GitHub's runner."""
     if PUBLIC_KEY.exists() or PRIVATE_KEY.exists():
         if not (PUBLIC_KEY.exists() and PRIVATE_KEY.exists()):
             raise RuntimeError("Only one manual fallback key file exists; refusing rotation")
-        validate_private_key(password)
+        validate_private_key(credential)
         return False
     private = x25519.X25519PrivateKey.generate()
     private_raw = private.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
     public_raw = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     salt, nonce = token_bytes(16), token_bytes(12)
-    secret = AESGCM(password_key(password, salt)).encrypt(nonce, private_raw, A_KEY)
+    secret = AESGCM(private_key_key(credential, salt)).encrypt(nonce, private_raw, A_KEY)
     PUBLIC_KEY.parent.mkdir(parents=True, exist_ok=True)
     PUBLIC_KEY.write_text(json.dumps({"version": 1, "algorithm": "X25519", "public_key": enc(public_raw)}) + "\n")
     PRIVATE_KEY.write_text(
-        json.dumps({"version": 1, "iterations": ITERATIONS, "salt": enc(salt),
+        json.dumps({"version": 2, "kdf": "HKDF-SHA256", "salt": enc(salt),
                     "nonce": enc(nonce), "ciphertext": enc(secret)}) + "\n"
     )
     print("Prepared encrypted static-fallback key; public key can receive manual scores.")
     return True
 
 
-def validate_private_key(password: str) -> x25519.X25519PrivateKey:
+def validate_private_key(credential: str) -> x25519.X25519PrivateKey:
     try:
         private_data = json.loads(PRIVATE_KEY.read_text(encoding="utf-8"))
         public_data = json.loads(PUBLIC_KEY.read_text(encoding="utf-8"))
-        if private_data["version"] != 1 or public_data["version"] != 1:
+        if private_data["version"] != 2 or private_data.get("kdf") != "HKDF-SHA256" or public_data["version"] != 1:
             raise ValueError("Invalid fallback key versions")
-        key = password_key(password, dec(private_data["salt"]))
+        key = private_key_key(credential, dec(private_data["salt"]))
         raw = AESGCM(key).decrypt(dec(private_data["nonce"]), dec(private_data["ciphertext"]), A_KEY)
         private = x25519.X25519PrivateKey.from_private_bytes(raw)
         if private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw) != dec(public_data["public_key"]):
             raise ValueError("Fallback private/public keys disagree")
         return private
     except (OSError, KeyError, ValueError, TypeError, InvalidTag) as exc:
-        raise RuntimeError("Could not unlock private manual-fallback key with the site password") from exc
+        raise RuntimeError("Could not unlock private manual-fallback key with the server credential") from exc
 
 
 def encrypt_manual_payload(manual: dict, public_data: dict) -> dict:
@@ -185,7 +180,7 @@ def compute_standings(all_matchups: dict, names: set[str]) -> list[dict]:
     return result
 
 
-def apply_manual_fallback(password: str) -> bool:
+def apply_manual_fallback(credential: str) -> bool:
     """Apply all encrypted backups in order, without replacing newer live Yahoo data.
 
     The original Week 4-5 ciphertext cannot be decrypted outside the trusted runner.
@@ -198,8 +193,8 @@ def apply_manual_fallback(password: str) -> bool:
     if not available:
         return False
 
-    private = validate_private_key(password)
-    db = load_records(password)
+    private = validate_private_key(credential)
+    db = load_records(credential)
     names = {team["name"] for team in db["currentStandings"]}
     if len(names) != 10:
         raise RuntimeError("Unrecognized legacy team roster")
@@ -276,15 +271,15 @@ def apply_manual_fallback(password: str) -> bool:
     db["manualFallback"] = {
         "fingerprint": digest, "weeks": sorted(map(int, manual_weeks)),
     }
-    store_records(db, password)
+    store_records(db, credential)
     print(f"Applied encrypted manual results through Week {latest_manual_week} and recalculated ten-team standings.")
     return True
 
 if __name__ == "__main__":
     import sys
     if sys.argv[1:] == ["bootstrap"]:
-        generate_key_files(os.environ["SCFL_SITE_PASSWORD"])
+        generate_key_files(os.environ["YAHOO_CLIENT_SECRET"])
     elif sys.argv[1:] == ["apply"]:
-        apply_manual_fallback(os.environ["SCFL_SITE_PASSWORD"])
+        apply_manual_fallback(os.environ["YAHOO_CLIENT_SECRET"])
     else:
         raise SystemExit("Usage: python scripts/manual_fallback.py bootstrap|apply")

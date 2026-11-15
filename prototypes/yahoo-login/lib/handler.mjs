@@ -1,7 +1,6 @@
-import { readSettings,seal,unseal,cookie,setCookie,SESSION,TRANSACTION,decryptSnapshot,decryptTrialSnapshot } from './security.mjs';
+import { readSettings,seal,unseal,cookie,setCookie,SESSION,TRANSACTION,decryptTrialSnapshot } from './security.mjs';
 import { createYahoo } from './yahoo.mjs';
 const TRIAL_SNAPSHOT='https://raw.githubusercontent.com/jah0708/siler-city-fantasy/login-trial-data/snapshot.enc.json';
-const SNAPSHOT='https://jah0708.github.io/siler-city-fantasy/data/league-data.enc.json';
 // Same-origin preserves the Origin header on the logout form while suppressing
 // referrers to Yahoo and other origins. no-referrer makes native form Origin null.
 const privateHeaders={'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff'};
@@ -14,7 +13,7 @@ export function createHandler({env=process.env,fetcher=fetch,yahooFactory=create
   try{
    settings=readSettings(env);const url=new URL(request.url);action=url.searchParams.get('action')||url.pathname.split('/').at(-1);
    if(action==='config')return response({enabled:settings.enabled});
-   if(!settings.enabled)return response({error:'Yahoo sign-in is not enabled on this preview.'},503);
+   if(!settings.enabled)return response({error:'Yahoo sign-in is temporarily unavailable.'},503);
    if(!yahoo)yahoo=yahooFactory(settings,fetcher);
    if(url.origin!==settings.origin)return response({error:'Wrong origin'},400);
    const expected=action==='logout'?'POST':'GET';
@@ -45,10 +44,10 @@ export function createHandler({env=process.env,fetcher=fetch,yahooFactory=create
    if(!member?.subject||member.leagueKey!==settings.leagueKey)return response({error:'Sign in with Yahoo to view the league.'},401);
    if(action==='session')return response({authenticated:true,expiresAt:member.exp});
    if(action==='league'){
-    const data=await fetcher(settings.dataPrivateKey?TRIAL_SNAPSHOT:SNAPSHOT,{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000)});
+    const data=await fetcher(TRIAL_SNAPSHOT,{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000)});
     if(!data.ok)throw new Error('Snapshot unavailable');
     const text=await data.text();if(text.length>6e6)throw new Error('Snapshot too large');
-    const db=settings.dataPrivateKey?decryptTrialSnapshot(JSON.parse(text),settings.dataPrivateKey):await decryptSnapshot(JSON.parse(text),settings.password);
+    const db=decryptTrialSnapshot(JSON.parse(text),settings.dataPrivateKey);
     if(db.hub?.leagueKey!==settings.leagueKey)throw new Error('Wrong season snapshot');
     return response(db);
    }

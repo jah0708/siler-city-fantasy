@@ -93,5 +93,6 @@ window.initLeagueHub = function(db) {
   }
   $('matchupWeeks').querySelectorAll('button').forEach(b=>b.onclick=()=>renderSchedule(b.dataset.week));
   if(weeks.length){const selected=weeks.includes(current)?current:weeks.at(-1);renderSchedule(selected);requestAnimationFrame(()=>{const row=$('matchupWeeks'),btn=row.querySelector('.active');if(btn) row.scrollLeft=btn.offsetLeft-row.offsetLeft-Math.max(0,(row.clientWidth-btn.offsetWidth)/2)});}
-  $('lockLeague').onclick=()=>{try{sessionStorage.removeItem('scfl.league.password.session')}catch{}location.reload()};
+  $('lockLeague').textContent='Sign out';
+  $('lockLeague').onclick=()=>{const form=document.createElement('form');form.method='POST';form.action='/api/auth/logout';document.body.appendChild(form);form.submit()};
 };
