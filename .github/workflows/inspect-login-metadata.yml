@@ -15,13 +15,13 @@ jobs:
       - run: python -m pip install 'cryptography==46.0.4'
       - name: Read only the saved season and league key
         env:
-          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
         run: |
           python - <<'PY'
           import os,sys,re
           sys.path.insert(0,'scripts')
           from secure_site import load_records
-          db=load_records(os.environ['SCFL_SITE_PASSWORD'])
+          db=load_records(os.environ['YAHOO_CLIENT_SECRET'])
           key=db.get('hub',{}).get('leagueKey','')
           season=str(db.get('currentSeason',''))
           if not re.fullmatch(r'\d+\.l\.844486',key) or not re.fullmatch(r'20\d{2}',season):

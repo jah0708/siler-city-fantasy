@@ -33,7 +33,6 @@ jobs:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
-          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
           YAHOO_LEAGUE_ID: '844486'
         run: |
           if ! python scripts/update_from_yahoo.py; then
@@ -47,8 +46,8 @@ jobs:
             exit 1
           fi
           git add .github/yahoo-oauth.enc.json
-          if [ -f data/league-data.enc.json ]; then
-            git add data/league-data.enc.json
+          if [ -f .github/league-archive.enc.json ]; then
+            git add .github/league-archive.enc.json
           fi
           git add index.html
           if git diff --cached --quiet; then

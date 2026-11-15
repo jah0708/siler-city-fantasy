@@ -10,6 +10,8 @@ on:
       - 'assets/**'
       - 'package*.json'
       - 'index.html'
+      - 'web/**'
+      - 'prototypes/yahoo-login/**'
       - 'data/manual-fallback.enc.json'
       - 'data/manual-week-5-7.enc.json'
       - 'data/manual-week-8-9.enc.json'
@@ -23,6 +25,8 @@ on:
       - 'assets/**'
       - 'package*.json'
       - 'index.html'
+      - 'web/**'
+      - 'prototypes/yahoo-login/**'
       - 'data/manual-fallback.enc.json'
       - 'data/manual-week-5-7.enc.json'
       - 'data/manual-week-8-9.enc.json'
@@ -81,18 +85,24 @@ jobs:
           python-version: '3.12'
       - name: Install cryptography
         run: python -m pip install 'cryptography==46.0.4'
+      - name: Migrate retired password storage without Yahoo calls
+        env:
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          LEGACY_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+        run: python scripts/migrate_site_storage.py
       - name: Prepare encrypted manual fallback key
         env:
-          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
         run: python scripts/manual_fallback.py bootstrap
       - name: Fetch Yahoo scores and encrypt site
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
-          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
           YAHOO_LEAGUE_ID: '844486'
-        run: python scripts/update_from_yahoo.py
+        run: |
+          cp .github/league-archive.enc.json /tmp/scfl-archive-before-sync.enc.json
+          python scripts/update_from_yahoo.py
       - uses: actions/setup-node@v4
         if: github.event_name != 'schedule'
         with:
@@ -100,12 +110,13 @@ jobs:
       - name: Verify live clubhouse before publishing
         if: github.event_name != 'schedule'
         env:
-          SCFL_SITE_PASSWORD: ${{ secrets.SCFL_SITE_PASSWORD }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
         run: |
           npm ci && npx playwright install --with-deps chromium
-          python -m http.server 8766 &
+          node prototypes/yahoo-login/build.mjs
+          python -m http.server 8766 --directory prototypes/yahoo-login/public &
           if ! node tests/live_smoke.cjs; then
-            git restore -- data/league-data.enc.json
+            cp /tmp/scfl-archive-before-sync.enc.json .github/league-archive.enc.json
             exit 1
           fi
       - name: Publish encrypted changes only
@@ -117,11 +128,12 @@ jobs:
             exit 1
           fi
           git add index.html
+          git add .github/league-archive.enc.json
+          if git ls-files --error-unmatch data/league-data.enc.json >/dev/null 2>&1; then
+            git add -u -- data/league-data.enc.json
+          fi
           if [ -f .github/fallback-public-key.json ]; then
             git add .github/fallback-public-key.json .github/fallback-key.enc.json
-          fi
-          if [ -f data/league-data.enc.json ]; then
-            git add data/league-data.enc.json
           fi
           if [ -f .github/yahoo-oauth.enc.json ]; then
             git add .github/yahoo-oauth.enc.json
