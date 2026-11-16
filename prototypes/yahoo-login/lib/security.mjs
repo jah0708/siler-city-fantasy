@@ -28,7 +28,7 @@ export function containsLeague(node,key){
  if(Object.hasOwn(node,'league_key')&&node.league_key===key)return true;
  return Object.values(node).some(n=>containsLeague(n,key));
 }
-export function decryptTrialSnapshot(payload,pem){
+export function decryptTrialEnvelope(payload,pem){
  if(payload.version!==1||payload.algorithm!=='X25519-HKDF-SHA256-A256GCM')throw new Error('Invalid trial snapshot');
  const privateKey=createPrivateKey(pem);if(privateKey.asymmetricKeyType!=='x25519')throw new Error('Invalid trial key');
  const rawPublic=createPublicKey(privateKey).export({type:'spki',format:'der'}).subarray(-32);
@@ -38,7 +38,10 @@ export function decryptTrialSnapshot(payload,pem){
  const publicKey=createPublicKey({key:Buffer.concat([Buffer.from('302a300506032b656e032100','hex'),ephemeral]),type:'spki',format:'der'});
  const shared=diffieHellman({privateKey,publicKey});const key=Buffer.from(hkdfSync('sha256',shared,salt,Buffer.from('scfl-login-hub-v1'),32));
  const decipher=createDecipheriv('aes-256-gcm',key,nonce);decipher.setAAD(Buffer.from('scfl-login-snapshot-v1'));decipher.setAuthTag(cipher.subarray(-16));
- const db=JSON.parse(Buffer.concat([decipher.update(cipher.subarray(0,-16)),decipher.final()]).toString('utf8'));
+ return JSON.parse(Buffer.concat([decipher.update(cipher.subarray(0,-16)),decipher.final()]).toString('utf8'));
+}
+export function decryptTrialSnapshot(payload,pem){
+ const db=decryptTrialEnvelope(payload,pem);
  if(!db.seasons||!Array.isArray(db.currentStandings))throw new Error('Incomplete trial snapshot');
  return db;
 }

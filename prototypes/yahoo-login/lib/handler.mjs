@@ -1,10 +1,21 @@
-import { readSettings,seal,unseal,cookie,setCookie,SESSION,TRANSACTION,decryptTrialSnapshot } from './security.mjs';
+import { readSettings,seal,unseal,cookie,setCookie,SESSION,TRANSACTION,decryptTrialSnapshot,decryptTrialEnvelope } from './security.mjs';
 import { createYahoo } from './yahoo.mjs';
+import HISTORICAL_PATCH from './historical-playoff-patch.mjs';
 const TRIAL_SNAPSHOT='https://raw.githubusercontent.com/jah0708/siler-city-fantasy/login-trial-data/snapshot.enc.json';
+// Workbook corrections are encrypted to the same key as the member snapshot.
+export function applyHistoricalPlayoffPatch(db,patch){
+ if(!db.playoffs||!patch||typeof patch!=='object')return db;
+ for(const year of ['2018','2020']){
+  const source=patch[year], target=db.playoffs[year];
+  if(!source||!target||typeof source!=='object'||typeof target!=='object')continue;
+  for(const field of ['seeds','placement','consolation','yahooArchive'])if(source[field]!=null)target[field]=source[field];
+ }
+ return db;
+}
 // Same-origin preserves the Origin header on the logout form while suppressing
 // referrers to Yahoo and other origins. no-referrer makes native form Origin null.
 const privateHeaders={'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Referrer-Policy':'same-origin','X-Content-Type-Options':'nosniff'};
-export function createHandler({env=process.env,fetcher=fetch,yahooFactory=createYahoo}={}){
+export function createHandler({env=process.env,fetcher=fetch,yahooFactory=createYahoo,historicalPatch=HISTORICAL_PATCH}={}){
  let settings,yahoo;
  function response(data,status=200,extra={}){return new Response(JSON.stringify(data),{status,headers:{...privateHeaders,'Content-Type':'application/json',...extra}})}
  function redirect(path,headers={}){return new Response(null,{status:303,headers:{...privateHeaders,Location:path,...headers}})}
@@ -49,6 +60,8 @@ export function createHandler({env=process.env,fetcher=fetch,yahooFactory=create
     const text=await data.text();if(text.length>6e6)throw new Error('Snapshot too large');
     const db=decryptTrialSnapshot(JSON.parse(text),settings.dataPrivateKey);
     if(db.hub?.leagueKey!==settings.leagueKey)throw new Error('Wrong season snapshot');
+    // A rotated key or unavailable correction must never prevent league access.
+    if(db.playoffs&&historicalPatch){try{applyHistoricalPlayoffPatch(db,decryptTrialEnvelope(historicalPatch,settings.dataPrivateKey));}catch{console.warn('Historical playoff details are temporarily unavailable.')}}
     return response(db);
    }
    return response({error:'Not found'},404);
