@@ -145,7 +145,7 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
         honors=honor('Regular-season winner',regular)+honor('Playoff winner',p.champion)+honor('Runner-up',p.runnerUp)+honor('Third place',p.thirdPlace);
         const seeds=p.seeds||{},games=items=>(Array.isArray(items)?items:[]).map(g=>bracketGame(g,false,seeds));
         const historical=round('Quarterfinals',games(p.quarterfinals))+round('Semifinals',games(p.semifinals))+round('Championship',[bracketGame(p.final,false,seeds)]);
-        const seedNote=Object.keys(seeds).length?'Workbook playoff seeds and results':'Playoff seeds not recorded in the workbook';
+        const seedNote=Object.keys(seeds).length?'Workbook playoff seeds and results':'Playoff seeds unavailable in this view';
         bracket=bracketSection(`${year} championship bracket`,seedNote,historical);
         if(Array.isArray(p.placement)&&p.placement.length)bracket+=bracketSection('Championship placement games','Workbook results',round('Placement games',games(p.placement)),'consolation');
         const archive=p.yahooArchive||{},consolation=p.consolation||{},semis=games(consolation.semifinals),placement=games(consolation.placement);
