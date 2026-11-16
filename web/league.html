@@ -144,20 +144,19 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
         const p=db.playoffs[year]||{},regular=p.regularSeasonWinner||(db.seasons[year]||[])[0]?.name;
         honors=honor('Regular-season winner',regular)+honor('Playoff winner',p.champion)+honor('Runner-up',p.runnerUp)+honor('Third place',p.thirdPlace);
         const seeds=p.seeds||{},games=items=>(Array.isArray(items)?items:[]).map(g=>bracketGame(g,false,seeds));
+        const finishes=Array.isArray(p.finishes)?p.finishes:[];
+        const finishTable=finishes.length?`<section class="bracket-section"><h3>Final playoff finishes</h3><div class="playoff-finishes" role="table" aria-label="Final playoff finishes"><div class="finish-header" role="row"><span role="columnheader">Finish</span><span role="columnheader">Team</span><span role="columnheader">Seed</span></div>${finishes.map(t=>`<div role="row"><strong role="cell">${escapeHtml(String(t.place))}</strong><span role="cell">${escapeHtml(t.name||'Not recorded')}</span><span role="cell">${escapeHtml(String(seeds[t.name]||'—'))}</span></div>`).join('')}</div></section>`:'';
         const historical=round('Quarterfinals',games(p.quarterfinals))+round('Semifinals',games(p.semifinals))+round('Championship',[bracketGame(p.final,false,seeds)]);
-        const seedNote=Object.keys(seeds).length?'Workbook playoff seeds and results':'Playoff seeds unavailable in this view';
-        bracket=bracketSection(`${year} championship bracket`,seedNote,historical);
-        if(Array.isArray(p.placement)&&p.placement.length)bracket+=bracketSection('Championship placement games','Workbook results',round('Placement games',games(p.placement)),'consolation');
-        const archive=p.yahooArchive||{},consolation=p.consolation||{},semis=games(consolation.semifinals),placement=games(consolation.placement);
-        if(semis.length||placement.length)bracket+=bracketSection('Consolation bracket','Workbook results · Scores shown where recorded',`${semis.length?round('Semifinals',semis):''}${placement.length?round('Placement games',placement):''}`,'consolation');
-        else if(!archive.consolation)bracket+='<section class="bracket-section"><div class="bracket-section-head"><h3>Consolation bracket</h3></div><p class="hub-empty">Consolation matchups are not recorded in the workbook for this season.</p></section>';
-        const yahooGames=items=>(Array.isArray(items)?items:[]).map(g=>bracketGame(g));
-        const yahooChampionship=yahooGames(archive.championship),yahooConsolation=archive.consolation||{},yahooSemis=yahooGames(yahooConsolation.semifinals),yahooPlacement=yahooGames(yahooConsolation.placement);
-        const yahooNote="Yahoo results and seeds may differ from the workbook's custom bracket.";
-        if(yahooChampionship.length)bracket+=bracketSection(`Yahoo's ${year} championship results`,yahooNote,round('Recorded games',yahooChampionship),'consolation');
-        if(yahooSemis.length||yahooPlacement.length)bracket+=bracketSection(`Yahoo's ${year} consolation bracket`,`${semis.length||placement.length?'':"The workbook does not record a consolation bracket. "}${yahooNote}`,`${yahooSemis.length?round('Semifinals',yahooSemis):''}${yahooPlacement.length?round('Placement games',yahooPlacement):''}`,'consolation');
-        if((yahooChampionship.length||yahooSemis.length||yahooPlacement.length)&&/^https:\/\/football\.fantasysports\.yahoo\.com\/\d{4}\/f1\/\d+\/?$/.test(archive.sourceUrl||''))bracket+=`<section class="bracket-section"><a href="${escapeHtml(archive.sourceUrl)}" target="_blank" rel="noopener noreferrer">View Yahoo's ${escapeHtml(year)} archive ↗</a></section>`;
-        document.getElementById('playoffNote').textContent=(yahooChampionship.length||yahooSemis.length||yahooPlacement.length)?`${year} workbook and Yahoo archive`:`${year} final results from the workbook`;
+        bracket=bracketSection(`${year} championship bracket`,p.seedBasis||'Recorded playoff seeds',historical);
+        if(Array.isArray(p.placement)&&p.placement.length)bracket+=bracketSection('Championship placement games','Third and fifth place',round('Placement games',games(p.placement)),'consolation');
+        const consolation=p.consolation||{},semis=games(consolation.semifinals),placement=games(consolation.placement);
+        if(semis.length||placement.length)bracket+=bracketSection('Consolation bracket','Seventh through tenth place',`${semis.length?round('Semifinals',semis):''}${placement.length?round('Placement games',placement):''}`,'consolation');
+        else bracket+='<p class="hub-empty">Consolation results are not available for this season.</p>';
+        bracket+=finishTable;
+        if(p.sourceNote)bracket+=`<p class="hub-sub">${escapeHtml(p.sourceNote)}</p>`;
+        if(/^https:\/\/football\.fantasysports\.yahoo\.com\/\d{4}\/f1\/\d+\/?$/.test(p.sourceUrl||''))bracket+=`<p><a href="${escapeHtml(p.sourceUrl)}" target="_blank" rel="noopener noreferrer">View source archive ↗</a></p>`;
+        document.getElementById('playoffNote').textContent=year==='2018'?'2018 · Original head-to-head seeds':`${year} · Adjusted playoff seeds`;
+
       }
       document.getElementById('playoffHonors').innerHTML=honors;document.getElementById('playoffBracket').innerHTML=bracket;
       document.querySelectorAll('#playoffYears .year-btn').forEach(b=>b.classList.toggle('active',b.dataset.year===year));

@@ -19,12 +19,13 @@ test('workbook correction is encrypted for the configured member key',()=>{
  const pub=JSON.parse(readFileSync(new URL('../../../.github/login-trial-public-key.json',import.meta.url)));
  assert.equal(payload.key_id,pub.key_id);assert(!JSON.stringify(payload).includes('Stephen'));
 });
-test('historical patch preserves known outcomes and leaves absent games unknown',()=>{
- const db={playoffs:{2018:{champion:null,quarterfinals:[{team1:'A',score1:20}]},2020:{champion:null}}};
- const p={2018:{seeds:{A:1},champion:'not accepted'},2020:{placement:[{team1:'B',score1:null}],consolation:{semifinals:[],placement:[]}}};
+test('historical patch applies all recorded seasons without altering the current season',()=>{
+ const db={playoffs:Object.fromEntries(Array.from({length:9},(_,i)=>[2018+i,{champion:null}]))};
+ const p=Object.fromEntries(Array.from({length:9},(_,i)=>[2018+i,{seeds:{A:1},champion:'A',finishes:[{place:1,name:'A'}],final:{team1:'A',score1:null},yahooArchive:null}]));
  assert.equal(applyHistoricalPlayoffPatch(db,p),db);
- assert.equal(db.playoffs[2018].champion,null);assert.equal(db.playoffs[2018].quarterfinals[0].score1,20);
- assert.equal(db.playoffs[2018].seeds.A,1);assert.equal(db.playoffs[2020].placement[0].score1,null);
+ for(let y=2018;y<=2025;y++){assert.equal(db.playoffs[y].seeds.A,1);assert.equal(db.playoffs[y].champion,'A');assert.equal(db.playoffs[y].finishes[0].name,'A');assert.equal(db.playoffs[y].final.score1,null);assert.equal(db.playoffs[y].yahooArchive,null);}
+ assert.deepEqual(db.playoffs[2026],{champion:null});
+
 });
 test('authenticated responses merge the encrypted workbook patch; wrong keys do not block access',async()=>{
  const pair=generateKeyPairSync('x25519'),other=generateKeyPairSync('x25519');

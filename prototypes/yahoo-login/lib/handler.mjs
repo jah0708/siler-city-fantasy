@@ -5,10 +5,10 @@ const TRIAL_SNAPSHOT='https://raw.githubusercontent.com/jah0708/siler-city-fanta
 // Workbook corrections are encrypted to the same key as the member snapshot.
 export function applyHistoricalPlayoffPatch(db,patch){
  if(!db.playoffs||!patch||typeof patch!=='object')return db;
- for(const year of ['2018','2020']){
+ for(const year of Object.keys(patch).filter(y=>/^20(?:1[8-9]|2[0-5])$/.test(y))){
   const source=patch[year], target=db.playoffs[year];
   if(!source||!target||typeof source!=='object'||typeof target!=='object')continue;
-  for(const field of ['seeds','placement','consolation','yahooArchive'])if(source[field]!=null)target[field]=source[field];
+  for(const field of ['seeds','quarterfinals','semifinals','final','placement','consolation','finishes','champion','runnerUp','thirdPlace','regularSeasonWinner','seedBasis','sourceNote','sourceUrl','yahooArchive'])if(Object.hasOwn(source,field))target[field]=source[field];
  }
  return db;
 }
