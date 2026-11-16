@@ -176,3 +176,5 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
  nav .shell>.nav-more>summary{min-height:44px;padding-inline:3px;font-size:clamp(.68rem,2.9vw,.77rem)}
  nav .shell>.nav-more>summary::after{margin-left:3px}
 }
+
+.playoff-finishes{max-width:640px;margin-top:12px}.playoff-finishes>div{display:grid;grid-template-columns:60px minmax(0,1fr) 50px;gap:12px;padding:8px 0;border-bottom:1px solid var(--line,#ddd)}.playoff-finishes .finish-header{font-size:.8rem;color:var(--muted);font-weight:700}.playoff-finishes>div>:last-child{text-align:right}
