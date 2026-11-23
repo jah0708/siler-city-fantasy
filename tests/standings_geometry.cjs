@@ -16,7 +16,7 @@ const fs=require('node:fs');
   await page.goto('http://127.0.0.1:8765');
   await page.getByRole('button',{name:'Standings',exact:true}).click();
   assert.equal(await page.locator('#standingsBody tr').count(),10);
-  assert((await page.locator('#standingsHead').innerText()).includes('Week 17'));
+  assert.equal(await page.getByRole('columnheader',{name:/Week 17/i}).count(),1);
   assert((await page.locator('#standingsBody tr').first().locator('.adjusted-record').innerText()).endsWith('–1'));
   assert.equal(await page.locator('.result-chip[aria-label="Matchup: tie"]').count(),1);
   for(const width of [320,390,768,1440,2099]){
