@@ -6,6 +6,8 @@ on:
       - 'prototypes/yahoo-login/**'
       - 'web/**'
       - 'assets/**'
+      - 'tests/**'
+      - 'package*.json'
       - 'scripts/export_login_snapshot.py'
       - '.github/workflows/yahoo-login-prototype.yml'
 permissions:
@@ -38,9 +40,11 @@ jobs:
           npm ci && npx playwright install --with-deps chromium
           mkdir -p test-results
           python -m http.server 8767 --directory prototypes/yahoo-login/public &
+          python -m http.server 8765 --directory /tmp/scfl-preview &
           node prototypes/yahoo-login/tests/browser.cjs
+          npm run test:browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: yahoo-login-preview
-          path: test-results/yahoo-signin-mobile.png
+          path: test-results/*.png
