@@ -19,9 +19,9 @@
 /* League desk: compact typography and ruled sections keep the data in focus. */
 :root{--ink:#263348;--muted:#626e7d;--line:#d6d5d0;--paper:#f7f6f2}
 body{background:var(--paper);line-height:1.45}
-.shell{max-width:1240px}
+.shell{width:calc(100% - clamp(32px,5vw,96px));max-width:1600px;min-width:0}
 .masthead{border-bottom:2px solid var(--gold)}
-.hero{padding:16px 0 15px}
+.hero{padding:24px 0 22px}
 .hero .eyebrow{font-size:.64rem;margin-bottom:7px;letter-spacing:.13em}
 .brand-lockup{display:flex;gap:14px}
 .hero-logo{width:70px;max-width:70px;flex:none}
@@ -43,11 +43,16 @@ nav .shell{overflow:visible;align-items:stretch;gap:0;padding:0}
 .nav-more-menu{position:absolute;right:0;top:100%;z-index:10;min-width:205px;padding:5px 0;background:#fff;border:1px solid #cfd4dc;box-shadow:0 8px 22px #17263b26}
 .nav-more-menu .nav-btn,.nav-more-menu .hub-lock{display:block;width:100%;min-height:44px;margin:0;padding:10px 16px;border:0;border-radius:0;background:#fff;color:var(--ink);text-align:left;font-size:.85rem}
 .nav-more-menu .nav-btn:hover,.nav-more-menu .hub-lock:hover,.nav-more-menu .nav-btn.active{background:#edf0f4;color:#1f2f46}
-main{padding:22px 0 48px}
-.section-head{margin-bottom:14px}
+main{padding:32px 0 48px}
+.view,.hub-intro>*,.hub-grid>*,.grid>*{min-width:0}
+.section-head{margin-bottom:24px;align-items:flex-start;gap:20px}
+.section-head>div{flex:none}
+.section-head p{max-width:64ch;line-height:1.6}
+.section-head .eyebrow{text-align:left;margin-bottom:8px}
 .section-head h2{font-size:clamp(1.65rem,2.6vw,2.05rem);letter-spacing:-.025em}
 .section-head p{font-size:.85rem}
-.card{background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
+.card{background:transparent;border:0;border-radius:0;box-shadow:none}
+.table-wrap,.hub-table-wrap,.bracket-shell{max-width:100%;min-width:0;overflow:auto;overscroll-behavior-inline:contain}
 .card-pad,.hub-panel{padding:0}
 .hub-status{gap:7px;margin:0 0 14px;font-size:.74rem}
 .hub-intro{grid-template-columns:1.15fr 1fr;gap:32px;margin:0 0 22px}
@@ -109,12 +114,12 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
 @media(max-width:760px){
  nav:after{display:none}
  .shell{width:calc(100% - 28px)}
- .hero{padding:12px 0}.hero-logo{width:55px;max-width:55px}
+ .hero{padding:20px 0}.hero-logo{width:55px;max-width:55px}
  .brand-lockup{display:flex;gap:10px}.hero h1{font-size:clamp(1.35rem,5vw,1.8rem);line-height:1.1}
  .hero-copy{margin-top:7px}.hero-copy p{display:none}
  nav .shell{gap:0;padding:0}
  .nav-btn,.nav-btn.nav-primary:not(.active),.nav-more summary{padding:9px 8px;font-size:.77rem}
- main{padding:17px 0 36px}
+ main{padding:24px 0 36px}
  .section-head h2{font-size:1.65rem}
  .hub-intro{gap:18px}.hub-header h2{font-size:1.35rem}
  .hub-panel{padding:0}.hub-grid{gap:16px;padding-top:14px}
@@ -178,3 +183,75 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
 }
 
 .playoff-finishes{max-width:640px;margin-top:12px}.playoff-finishes>div{display:grid;grid-template-columns:60px minmax(0,1fr) 50px;gap:12px;padding:8px 0;border-bottom:1px solid var(--line,#ddd)}.playoff-finishes .finish-header{font-size:.8rem;color:var(--muted);font-weight:700}.playoff-finishes>div>:last-child{text-align:right}
+
+/* Season standings: one contained table, with records and each week's results. */
+.standings-heading{align-items:end;margin-bottom:24px}
+.standings-heading h2{font-size:clamp(2rem,3vw,2.5rem);line-height:1.1}
+.standings-heading #standingNote{margin:0 0 3px;font-size:.84rem;text-align:right}
+.standings-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;margin-bottom:24px}
+.standings-toolbar .year-row{margin:0;gap:6px;flex:none;max-width:100%;padding:2px}
+.standings-toolbar .year-btn{padding:9px 15px;border-radius:6px;line-height:1.2}
+.standings-toolbar .standings-explainer{margin:0;font-size:.8rem;max-width:40ch;text-align:right}
+.standings-detail{margin:0;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+.standings-panel-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid var(--line)}
+.standings-panel-head h3{margin:0;font-size:1rem;line-height:1.4;letter-spacing:-.01em}
+.standings-panel-head p{margin:5px 0 0;color:var(--muted);font-size:.8rem;line-height:1.5}
+.standings-scroll-hint{flex:none;color:var(--field);font-size:.76rem;font-weight:700}
+#standingsBreakdown{scroll-margin-top:80px}
+#standingsTableWrap{width:100%;max-height:min(820px,75vh);margin:0;scrollbar-gutter:auto;scrollbar-width:thin;scrollbar-color:#8c9db2 #edf0f4}
+#standingsTableWrap:focus-visible{outline-offset:-3px}
+.standings{width:max-content;min-width:100%;table-layout:fixed;font-size:.85rem;line-height:1.35}
+.standings th,.standings td{padding:13px 16px;border-right:0;border-bottom:1px solid #e6e8ec;text-align:center}
+.standings thead th{height:64px;background:#eaf0f6;color:#3d536f;font-size:.68rem;letter-spacing:.05em;vertical-align:middle;border-bottom:1px solid #cdd6e1}
+.standings thead tr:first-child th{background:#eaf0f6;color:#3d536f;border-bottom-color:#cdd6e1}
+.standings .th-sub{display:block;margin-top:5px;color:#65768b;font-weight:500;font-size:.63rem;letter-spacing:0;text-transform:none;white-space:nowrap}
+.standings th.rank,.standings td.rank{width:44px;min-width:44px;padding-inline:10px;left:0;background:#fff}
+.standings th.team,.standings td.team{width:196px;min-width:196px;max-width:196px;left:44px;padding-left:12px;border-right:1px solid #d9e0e8;white-space:normal;overflow-wrap:anywhere;text-align:left;box-shadow:5px 0 8px -6px #263a5a55}
+.standings tbody th.team{background:#fff;color:var(--ink);font-size:.85rem;letter-spacing:0;text-transform:none;font-weight:700}
+.standings .record-col{min-width:100px}
+.standings .points-col{min-width:112px;border-right:1px solid #d9e0e8}
+.standings td.points-col{font-weight:650;color:#47596e}
+.standings .adjusted-record{min-width:104px;font-weight:800;color:#263a5a}
+.standings .week-col,.standings .week-cell{min-width:96px}
+.standings .week-cell{height:70px;padding:10px 12px}
+.standings .week-score{display:block;font-size:.86rem;color:var(--ink)}
+.week-results{display:flex;justify-content:center;gap:5px;margin-top:6px}
+.result-chip{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:19px;padding:0 4px;border-radius:4px;font:750 .63rem/1 system-ui;letter-spacing:0}
+.result-chip.result-win,.result-chip.point-win{background:#e5f1eb;color:#2f684d}
+.result-chip.result-loss,.result-chip.point-loss{background:#f7eae7;color:#9b4640}
+.result-chip.result-tie{background:#e9edf2;color:#56657a}
+.standings tbody tr:nth-child(even)>*{background:#f8fafc}
+.standings tbody tr:hover>*{background:#eef3f8}
+.standings tbody tr:first-child td{font-weight:inherit;color:inherit;border-bottom-color:#e6e8ec}
+.standings tbody tr:first-child .adjusted-record{font-weight:800;color:#263a5a}
+.standings tbody tr:last-child>*{border-bottom:0}
+.standings-legend{display:flex;flex-wrap:wrap;gap:10px 20px;padding:15px 24px;border-top:1px solid var(--line);background:#fbfcfd;color:var(--muted);font-size:.73rem}
+.standings-legend>span{display:flex;align-items:center;gap:7px}
+.standings-footnote{max-width:85ch;color:var(--muted);font-size:.77rem;line-height:1.65;margin:16px 0 0}
+.standings-detail>.hub-empty{margin:0;padding:24px;border:0}
+.standings-legend[hidden],.standings-scroll-hint[hidden]{display:none}
+@media(max-width:1100px){
+ .standings-toolbar{align-items:flex-start;flex-direction:column;gap:12px}
+ .standings-toolbar .standings-explainer{max-width:none;text-align:left}
+}
+@media(max-width:760px){
+ .standings-heading{display:block;margin-bottom:20px}
+ .standings-heading #standingNote{margin-top:10px;text-align:left;font-size:.79rem}
+ .standings-toolbar{margin-bottom:20px}
+ .standings-toolbar .year-row{width:100%;margin-right:0;padding-right:0;scrollbar-width:thin}
+ .standings-toolbar .year-row::-webkit-scrollbar{display:block;height:3px}
+ .standings-toolbar .year-btn{padding-inline:13px}
+ .standings-panel-head{padding:16px;display:block}
+ .standings-panel-head p{font-size:.76rem}
+ .standings-scroll-hint{display:block;margin-top:10px;font-size:.72rem}
+ .standings th.rank,.standings td.rank{width:34px;min-width:34px;padding-inline:7px}
+ .standings th.team,.standings td.team{left:34px;width:134px;min-width:134px;max-width:134px;padding-inline:10px}
+ .standings tbody th.team{font-size:.77rem}
+ .standings th,.standings td{padding:11px 12px;font-size:.78rem}
+ .standings thead th{font-size:.64rem}
+ .standings .record-col,.standings .adjusted-record{min-width:90px}
+ .standings .week-col,.standings .week-cell{min-width:88px}
+ .standings-legend{padding:14px 16px;gap:10px 14px;font-size:.7rem}
+ #standingsTableWrap{max-height:70vh}
+ .standings-footnote{font-size:.74rem}
+}
