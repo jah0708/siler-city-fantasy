@@ -86,7 +86,7 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
       </section>
       <p class="standings-footnote">Current-season records use completed weeks only. Standings update after Yahoo marks the week final; later stat corrections may change results.</p>
     </section>
-    <section id="playoffs" class="view"><div class="section-head"><div><p class="eyebrow">The postseason</p><h2>Playoffs</h2></div><p id="playoffNote">Playoff picture</p></div><div class="year-row" id="playoffYears"></div><div class="honors" id="playoffHonors"></div><article class="card bracket-shell"><div id="playoffBracket"></div></article></section>
+    <section id="playoffs" class="view"><div class="section-head"><div><p class="eyebrow">The postseason</p><h2>Playoffs</h2></div><p id="playoffNote">Playoff picture</p></div><div class="year-row" id="playoffYears"></div><div class="honors" id="playoffHonors"></div><div class="bracket-shell"><div id="playoffBracket"></div></div></section>
     <section id="draft" class="view"><div class="section-head"><div><p class="eyebrow">Next up</p><h2>Draft</h2></div><p>Draft picks and the commissioner’s next draft order.</p></div><div class="hub-tools" id="draftTools"></div><div id="draftPicks"></div><div id="draftFreshness"></div><h3>Next draft order · commissioner workbook</h3><article class="card"><div class="card-pad"><div class="draft" id="draftList"></div></div></article></section>
     <section id="history" class="view"><div class="section-head"><div><p class="eyebrow">League archive</p><h2>Season history</h2></div><p>2018–2025</p></div><div class="year-row" id="historyYears"></div><div class="grid"><article class="card champion"><span class="kicker" id="historyYearLabel"></span><strong id="historyWinner"></strong><p class="muted" id="historyMeta"></p></article><article class="card"><div class="card-pad"><span class="kicker">Top five</span><ol class="rank-list" id="historyTop"></ol></div></article></div></section>
   </main>
@@ -119,6 +119,7 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
       moreSummary.setAttribute('aria-label',inMore?'More league sections, current: '+b.textContent:'More league sections');
       moreMenu.open=false;
       const view=document.getElementById(b.dataset.view);view.classList.add('active');
+      if(b.dataset.view==='playoffs')scheduleBracketLinks();
       if(event.detail===0||inMore){const heading=view.querySelector('h2')||view;heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true})}
     });
     window.openStandingsBreakdown=()=>{document.querySelector('.nav-btn[data-view=standings]').click();const heading=document.getElementById('standingsBreakdown');heading.scrollIntoView({block:'start'});heading.focus({preventScroll:true})};
@@ -164,11 +165,58 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
     function renderMatchups(week){const games=db.matchups[week]||[];document.getElementById('matchupList').innerHTML=games.map(g=>{const leftWin=g[1]>g[3],rightWin=g[3]>g[1];return `<div class="game"><span class="game-team right">${escapeHtml(g[0])}</span><span class="game-score ${leftWin?'winner':''}">${fmt(g[1])}</span><span class="versus">vs</span><span class="game-score ${rightWin?'winner':''}">${fmt(g[3])}</span><span class="game-team">${escapeHtml(g[2])}</span></div>`}).join('');document.querySelectorAll('#matchupWeeks .year-btn').forEach(b=>b.classList.toggle('active',b.dataset.year===week))}
     document.getElementById('matchupSourceNote').textContent=db.yahoo?.source==='manual'?'Saved manual results through Week '+db.yahoo.week+' · Yahoo sync pending':db.yahoo?.source==='live'?'Synced from Yahoo through Week '+db.yahoo.week:'Last saved results · automatic Yahoo sync enabled';
     const matchWeeks=Object.keys(db.matchups||{}).sort((a,b)=>Number(a)-Number(b));yearButtons(document.getElementById('matchupWeeks'),renderMatchups,matchWeeks);document.querySelectorAll('#matchupWeeks .year-btn').forEach(b=>b.textContent=`Week ${b.dataset.year}`);if(matchWeeks.length)renderMatchups(matchWeeks[matchWeeks.length-1]);
-    function teamLine(team,score=null,seeds={}){const item=typeof team==='string'?{name:team}:team||{name:'To be determined',pending:true},rank=Number(item.rank??seeds[item.name]),seed=Number.isInteger(rank)&&rank>0?`<span class="seed" aria-label="Seed ${rank}">${rank}</span>`:'';return `<div class="bracket-team ${item.pending?'pending':''}"><span class="team-label">${seed}${escapeHtml(item.name)}</span><span class="bracket-score">${score==null?'—':fmt(score)}</span></div>`}
-    function bracketGame(g,projected=false,seeds={}){if(!g)return '<div class="bracket-game muted">Result not recorded</div>';const seeded=(team,seed)=>seed==null?team:{...(typeof team==='string'?{name:team}:team),rank:seed};return `<div class="bracket-game ${projected?'projected':''}">${g.label?`<span class="advance-note">${escapeHtml(g.label)}</span>`:''}${teamLine(seeded(g.team1,g.seed1),g.score1,seeds)}${teamLine(seeded(g.team2,g.seed2),g.score2,seeds)}</div>`}
-    function round(title,games){return `<div class="round"><h3>${escapeHtml(title)}</h3><div class="round-games">${games.join('')}</div></div>`}
-    function honor(label,value,note=''){return `<article class="card honor"><span>${label}</span><strong>${escapeHtml(value||'Not recorded')}</strong>${note?`<small>${escapeHtml(note)}</small>`:''}</article>`}
-    function bracketSection(title,note,content,kind=''){return `<section class="bracket-section"><div class="bracket-section-head"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(note)}</p></div><div class="bracket ${kind}">${content}</div></section>`}
+    const participantName=team=>typeof team==='string'?team:team?.name||'';
+    const hasScore=score=>score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score));
+    function teamLine(team,score=null,seeds={},outcome=''){
+      const item=typeof team==='string'?{name:team}:team||{name:'To be determined',pending:true};
+      const rank=Number(item.rank??seeds[item.name]);
+      const seed=Number.isInteger(rank)&&rank>0?`<span class="seed" aria-label="Seed ${rank}">${rank}</span>`:'';
+      return `<div class="bracket-team ${item.pending?'pending':''} ${outcome}"><span class="team-label">${seed}<span class="team-name">${escapeHtml(item.name)}</span></span><span class="bracket-score">${hasScore(score)?fmt(score):'—'}</span>${outcome==='is-winner'?'<span class="winner-mark" aria-label="Winner">✓</span>':'<span class="winner-mark" aria-hidden="true"></span>'}</div>`;
+    }
+    function bracketGame(g,projected=false,seeds={}){
+      if(!g)return '<div class="bracket-game bracket-empty"><span class="game-status">Result not recorded</span><p>No championship result is available.</p></div>';
+      const complete=hasScore(g.score1)&&hasScore(g.score2);
+      const winner=complete&&Number(g.score1)!==Number(g.score2)?(Number(g.score1)>Number(g.score2)?1:2):0;
+      const seeded=(team,seed)=>seed==null?team:{...(typeof team==='string'?{name:team}:team),rank:seed};
+      const status=projected?'Projected':complete?'Final':'Result incomplete';
+      return `<div class="bracket-game ${projected?'projected':''}" data-team1="${escapeHtml(participantName(g.team1))}" data-team2="${escapeHtml(participantName(g.team2))}" data-winner="${winner?escapeHtml(participantName(winner===1?g.team1:g.team2)):""}"><div class="bracket-game-head"><span>${escapeHtml(g.label||'')}</span><span class="game-status">${status}</span></div>${teamLine(seeded(g.team1,g.seed1),g.score1,seeds,winner===1?'is-winner':winner===2?'is-loser':'')}${teamLine(seeded(g.team2,g.seed2),g.score2,seeds,winner===2?'is-winner':winner===1?'is-loser':'')}</div>`;
+    }
+    function round(title,games){
+      return `<div class="round ${title==='Championship'?'round-final':''}"><h4>${escapeHtml(title)}</h4><div class="round-games">${games.length?games.join(''):'<div class="round-empty">Results not recorded</div>'}</div></div>`;
+    }
+    function honor(label,value,note='',kind=''){
+      return `<article class="card honor ${kind}"><span>${label}</span><strong>${escapeHtml(value||'Not recorded')}</strong>${note?`<small>${escapeHtml(note)}</small>`:''}</article>`;
+    }
+    function bracketSection(title,note,content,kind=''){
+      const connected=kind!=='placement';
+      return `<section class="bracket-section ${kind==='placement'?'placement-section':''}"><div class="bracket-section-head"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(note)}</p></div>${connected?'<p class="bracket-swipe-hint">Scroll to follow the rounds →</p>':''}<div class="bracket-viewport" ${connected?`tabindex="0" role="region" aria-label="${escapeHtml(title)}, scroll sideways to follow the rounds"`:''}><div class="bracket ${kind}">${connected?'<svg class="bracket-links" aria-hidden="true" focusable="false"></svg>':''}${content}</div></div></section>`;
+    }
+    let bracketLinkFrame;
+    function scheduleBracketLinks(){cancelAnimationFrame(bracketLinkFrame);bracketLinkFrame=requestAnimationFrame(drawBracketLinks)}
+    function drawBracketLinks(){
+      document.querySelectorAll('#playoffBracket .bracket').forEach(plot=>{
+        const svg=plot.querySelector('.bracket-links');if(!svg||!plot.getBoundingClientRect().width)return;
+        const bounds=plot.getBoundingClientRect(),rounds=[...plot.querySelectorAll(':scope > .round')],paths=[];
+        svg.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
+        for(let i=0;i<rounds.length-1;i++){
+          const sources=[...rounds[i].querySelectorAll('.bracket-game[data-team1]')];
+          const targets=[...rounds[i+1].querySelectorAll('.bracket-game[data-team1]')];
+          sources.forEach(source=>{
+            const names=[source.dataset.team1,source.dataset.team2].filter(Boolean);
+            const candidates=targets.filter(t=>names.some(name=>name===t.dataset.team1||name===t.dataset.team2));
+            const winner=source.dataset.winner;
+            const target=winner?candidates.find(t=>t.dataset.team1===winner||t.dataset.team2===winner):candidates.length===1?candidates[0]:null;
+            if(!target)return;
+            const a=source.getBoundingClientRect(),b=target.getBoundingClientRect();
+            const x1=a.right-bounds.left,y1=a.top+a.height/2-bounds.top,x2=b.left-bounds.left,y2=b.top+b.height/2-bounds.top,middle=(x1+x2)/2;
+            paths.push(`<path d="M ${x1} ${y1} H ${middle} V ${y2} H ${x2}"/>`);
+          });
+        }
+        svg.innerHTML=paths.join('');
+      });
+    }
+    new ResizeObserver(scheduleBracketLinks).observe(document.getElementById('playoffBracket'));
+    window.addEventListener('resize',scheduleBracketLinks);
     function renderPlayoffs(year){
       let honors,bracket;
       if(year===currentSeason){
@@ -185,23 +233,25 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
         document.getElementById('playoffNote').textContent=weeks.length?'Yahoo postseason-week matchups':'Current playoff picture';
       }else{
         const p=db.playoffs[year]||{},regular=p.regularSeasonWinner||(db.seasons[year]||[])[0]?.name;
-        honors=honor('Regular-season winner',regular)+honor('Playoff winner',p.champion)+honor('Runner-up',p.runnerUp)+honor('Third place',p.thirdPlace);
+        honors=honor('League champion',p.champion,year+' title','champion-honor')+honor('Runner-up',p.runnerUp)+honor('Third place',p.thirdPlace)+honor('Regular-season winner',regular);
         const seeds=p.seeds||{},games=items=>(Array.isArray(items)?items:[]).map(g=>bracketGame(g,false,seeds));
         const finishes=Array.isArray(p.finishes)?p.finishes:[];
-        const finishTable=finishes.length?`<section class="bracket-section"><h3>Final playoff finishes</h3><div class="playoff-finishes" role="table" aria-label="Final playoff finishes"><div class="finish-header" role="row"><span role="columnheader">Finish</span><span role="columnheader">Team</span><span role="columnheader">Seed</span></div>${finishes.map(t=>`<div role="row"><strong role="cell">${escapeHtml(String(t.place))}</strong><span role="cell">${escapeHtml(t.name||'Not recorded')}</span><span role="cell">${escapeHtml(String(seeds[t.name]||'—'))}</span></div>`).join('')}</div></section>`:'';
+        const finishTable=finishes.length?`<section class="bracket-section finish-section"><div class="bracket-section-head"><h3>Final playoff finishes</h3><p>Every team’s finish and original seed.</p></div><div class="playoff-finishes" role="table" aria-label="Final playoff finishes"><div class="finish-header" role="row"><span role="columnheader">Finish</span><span role="columnheader">Team</span><span role="columnheader">Seed</span></div>${finishes.map(t=>`<div role="row"><strong role="cell">${escapeHtml(String(t.place))}</strong><span role="cell">${escapeHtml(t.name||'Not recorded')}</span><span role="cell">${escapeHtml(String(seeds[t.name]||'—'))}</span></div>`).join('')}</div></section>`:'';
         const historical=round('Quarterfinals',games(p.quarterfinals))+round('Semifinals',games(p.semifinals))+round('Championship',[bracketGame(p.final,false,seeds)]);
         bracket=bracketSection(`${year} championship bracket`,p.seedBasis||'Recorded playoff seeds',historical);
-        if(Array.isArray(p.placement)&&p.placement.length)bracket+=bracketSection('Championship placement games','Third and fifth place',round('Placement games',games(p.placement)),'consolation');
+        if(Array.isArray(p.placement)&&p.placement.length)bracket+=bracketSection('Championship placement games','Third and fifth place',round('Placement games',games(p.placement)),'placement');
         const consolation=p.consolation||{},semis=games(consolation.semifinals),placement=games(consolation.placement);
-        if(semis.length||placement.length)bracket+=bracketSection('Consolation bracket','Seventh through tenth place',`${semis.length?round('Semifinals',semis):''}${placement.length?round('Placement games',placement):''}`,'consolation');
-        else bracket+='<p class="hub-empty">Consolation results are not available for this season.</p>';
-        bracket+=finishTable;
+        let consolationBoard='';
+        if(semis.length||placement.length)consolationBoard=bracketSection('Consolation bracket','Seventh through tenth place',`${semis.length?round('Semifinals',semis):''}${placement.length?round('Placement games',placement):''}`,'consolation');
+        else consolationBoard='<p class="hub-empty">Consolation results are not available for this season.</p>';
+        bracket+=`<div class="playoff-secondary">${consolationBoard}${finishTable}</div>`;
         if(p.sourceNote)bracket+=`<p class="hub-sub">${escapeHtml(p.sourceNote)}</p>`;
         if(/^https:\/\/football\.fantasysports\.yahoo\.com\/\d{4}\/f1\/\d+\/?$/.test(p.sourceUrl||''))bracket+=`<p><a href="${escapeHtml(p.sourceUrl)}" target="_blank" rel="noopener noreferrer">View source archive ↗</a></p>`;
         document.getElementById('playoffNote').textContent=year==='2018'?'2018 · Original head-to-head seeds':`${year} · Adjusted playoff seeds`;
 
       }
-      document.getElementById('playoffHonors').innerHTML=honors;document.getElementById('playoffBracket').innerHTML=bracket;
+      document.getElementById('playoffHonors').innerHTML=honors;document.getElementById('playoffHonors').hidden=!honors;document.getElementById('playoffBracket').innerHTML=bracket;
+      scheduleBracketLinks();
       document.querySelectorAll('#playoffYears .year-btn').forEach(b=>b.classList.toggle('active',b.dataset.year===year));
     }
     yearButtons(document.getElementById('playoffYears'),renderPlayoffs,standingYears);renderPlayoffs(currentSeason);
