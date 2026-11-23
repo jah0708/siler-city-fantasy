@@ -68,7 +68,13 @@ body.locked .masthead,body.locked nav,body.locked main,body.locked footer{displa
   </div></nav>
   <main class="shell" id="mainContent" tabindex="-1">
     <section id="clubhouse" class="view active"><div id="hubHome"></div></section>
-    <section id="teams" class="view"><div class="section-head"><div><p class="eyebrow">Inside the roster</p><h2>Teams &amp; rosters</h2></div><p>Roster snapshots are view only. <a href="https://football.fantasysports.yahoo.com/f1/844486" target="_blank" rel="noopener noreferrer">Make roster moves on Yahoo ↗</a></p></div><div class="hub-tools" id="teamTools"></div><div id="teamContent"></div></section>
+    <section id="teams" class="view">
+      <div class="section-head"><div><p class="eyebrow">League directory</p><h2>Teams &amp; rosters</h2></div><p><a href="https://football.fantasysports.yahoo.com/f1/844486" target="_blank" rel="noopener noreferrer">Make roster moves on Yahoo ↗</a></p></div>
+      <div class="team-workspace">
+        <aside class="team-directory-panel" aria-label="Team selection"><div class="team-directory-head"><h3>Teams</h3><label for="teamYear">Year <select id="teamYear"></select></label></div><div id="teamDirectory"></div></aside>
+        <div class="team-detail"><div class="team-detail-header"><div id="teamIdentity"></div><div class="hub-tools" id="teamTools"></div></div><div id="teamContent"></div></div>
+      </div>
+    </section>
     <section id="players" class="view"><div class="section-head"><div><p class="eyebrow">Scout the league</p><h2>Players</h2></div><p>Search the latest view-only player snapshot. <a href="https://football.fantasysports.yahoo.com/f1/844486" target="_blank" rel="noopener noreferrer">Add or trade players on Yahoo ↗</a></p></div><div class="hub-tools" id="playerTools"></div><p class="hub-sub" id="playerCount"></p><div id="playerResults"></div><div id="playerFreshness"></div></section>
 
     <section id="activity" class="view"><div class="section-head"><div><p class="eyebrow">The transaction wire</p><h2>Transactions</h2></div><p>The latest 100 completed adds, drops, and trades.</p></div><div class="hub-tools" id="activityTools"></div><div class="card hub-panel" id="activityContent"></div></section>

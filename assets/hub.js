@@ -50,19 +50,63 @@ window.initLeagueHub = function(db) {
     <div class="hub-grid hub-activity-grid"><article class="card hub-panel"><h3>Latest league moves</h3>${moves(activity.slice(0,4))}<button class="hub-btn" id="allActivity">View activity →</button>${note('transactions')}</article></div>`;
     $('allMatchups').onclick=()=>navigate('matchups');$('allStandings').onclick=()=>window.openStandingsBreakdown();$('allActivity').onclick=()=>navigate('activity');
   }
-  $('teamTools').innerHTML=select('teamPicker','Team',teamOptions)+select('rosterWeek','Roster week',rosterWeeks.map(w=>`<option value="${w}">Week ${w}</option>`).join(''));
-  $('teamPicker').value=favorite;
+  const currentSeason=String(db.currentSeason||'2026');
+  const teamYears=[...new Set([currentSeason,...Object.keys(db.seasons||{})])].filter(y=>/^\d{4}$/.test(y)).sort((a,b)=>Number(b)-Number(a));
+  let teamYear=currentSeason;
+  const selectedTeams={[currentSeason]:favorite};
+  $('teamYear').innerHTML=teamYears.map(y=>`<option value="${esc(y)}">${esc(y)}</option>`).join('');
+  $('teamYear').value=teamYear;
+  $('teamTools').innerHTML=select('rosterWeek','Roster week',rosterWeeks.map(w=>`<option value="${esc(w)}">Week ${esc(w)}</option>`).join(''));
+  function teamEntries(){
+    if(teamYear===currentSeason)return teams.map(t=>({...t,row:rowFor(t.key)})).sort((a,b)=>(a.row?.rank??99)-(b.row?.rank??99));
+    return (db.seasons?.[teamYear]||[]).map((row,i)=>({key:`archive-${teamYear}-${i}`,name:row.name,managers:[],row}));
+  }
+  function renderTeamDirectory(){
+    const scrollTop=$('teamDirectory').querySelector('.team-directory-scroll')?.scrollTop||0;
+    const entries=teamEntries();
+    if(!entries.some(t=>t.key===selectedTeams[teamYear]))selectedTeams[teamYear]=entries[0]?.key||'';
+    $('teamDirectory').innerHTML=entries.length?`<div class="team-directory-scroll"><table class="team-picker-table" aria-label="Choose a team for ${esc(teamYear)}"><thead><tr><th scope="col">#</th><th scope="col">Team</th><th scope="col">Record</th><th scope="col">Points</th></tr></thead><tbody>${entries.map(t=>`<tr data-team-key="${esc(t.key)}" class="${t.key===selectedTeams[teamYear]?'is-selected':''}"><td>${esc(t.row?.rank??'—')}</td><th scope="row"><button type="button" data-select-team="${esc(t.key)}" aria-pressed="${t.key===selectedTeams[teamYear]}">${esc(t.name)}</button></th><td>${esc(displayRecord(t.row))}</td><td>${fmt(t.row?.points)}</td></tr>`).join('')}</tbody></table></div>`:empty('No teams are saved for this year.');
+    const scroller=$('teamDirectory').querySelector('.team-directory-scroll');if(scroller)scroller.scrollTop=scrollTop;
+    renderTeam();requestAnimationFrame(scrollSelectedTeam);
+  }
+  function scrollSelectedTeam(){
+    const panel=$('teamDirectory').querySelector('.team-directory-scroll'),row=panel?.querySelector('.is-selected');
+    if(!panel?.clientHeight||!row)return;
+    const p=panel.getBoundingClientRect(),r=row.getBoundingClientRect(),head=panel.querySelector('thead').getBoundingClientRect().height;
+    if(r.top<p.top+head)panel.scrollTop-=p.top+head-r.top;else if(r.bottom>p.bottom)panel.scrollTop+=r.bottom-p.bottom;
+  }
+  new ResizeObserver(()=>requestAnimationFrame(scrollSelectedTeam)).observe($('teamDirectory'));
+  function weeklyResults(points,open=false){
+    if(!points.length)return '';
+    return `<details class="team-weekly" ${open?'open':''}><summary>Weekly results <span>${points.length} completed weeks</span></summary>${table(['Week','Score','Matchup','Top half'],points.map(w=>`<tr><th scope="row">${esc(w.week)}</th><td class="num">${fmt(w.points)}</td><td>${esc(w.result||'—')}</td><td>${esc(w.pointResult==='P'?'Yes':w.pointResult==='X'?'No':'—')}</td></tr>`).join(''))}</details>`;
+  }
   function renderTeam(){
-    const key=$('teamPicker').value, week=$('rosterWeek').value||current, team=byKey[key], ps=roster(key,week), row=rowFor(key);
-    if(!team){$('teamContent').innerHTML=empty('Team profiles will appear after the next successful roster sync.');return}
-    const points=row?.weeks||[], max=Math.max(1,...points.map(w=>w.points));
+    const archived=teamYear!==currentSeason, team=teamEntries().find(t=>t.key===selectedTeams[teamYear]);
+    $('teamTools').hidden=archived;
+    if(!team){$('teamIdentity').innerHTML='';$('teamContent').innerHTML=empty('Team profiles will appear after the next successful roster sync.');return}
+    const week=$('rosterWeek').value||current, ps=archived?[]:roster(team.key,week), row=team.row;
+    const points=(row?.weeks||[]).slice().sort((a,b)=>Number(a.week)-Number(b.week));
+    const average=row?.average??(points.length?points.reduce((sum,w)=>sum+Number(w.points||0),0)/points.length:null);
+    $('teamIdentity').innerHTML=`<div class="hub-team-title">${archived?'':image(team.logo,'hub-team-logo')}<div><h3>${esc(team.name)}</h3><p>${esc(teamYear)}${team.managers?.length?' · '+esc(team.managers.join(' · ')):archived?' · Season archive':''}</p></div></div>`;
+    const metrics=`<div class="hub-metrics">${metric('Adjusted record',displayRecord(row))}${metric('Season points',fmt(row?.points))}${metric('Weekly average',fmt(average))}${archived?metric('Season rank',row?.rank??'—'):metric('Roster alerts',ps.filter(p=>p.status).length)}</div>`;
+    if(archived){
+      $('teamContent').innerHTML=metrics+`<p class="team-archive-note">Player rosters were not saved for ${esc(teamYear)}. These are the recorded regular-season results.</p>`+weeklyResults(points,true)+(teamYear==='2018'?'<p class="hub-sub">2018 rankings follow the original regular-season order; recorded playoff seeds may differ.</p>':'');
+      return;
+    }
     const slots=ps.slice().sort((a,b)=>['BN','IR','IR+'].includes(a.slot)-['BN','IR','IR+'].includes(b.slot));
-    $('teamContent').innerHTML=`<div class="hub-team-title">${image(team.logo,'hub-team-logo')}<div><h3>${esc(team.name)}</h3><p>${esc(team.managers.join(' · '))}</p></div></div><div class="hub-metrics">${metric('Adjusted record',displayRecord(row),'Matchup wins + top-half wins')}${metric('Season points',fmt(row?.points))}${metric('Weekly average',fmt(row?.average))}${metric('Roster alerts',ps.filter(p=>p.status).length,'Yahoo injury/status flags')}</div>
-    ${standingsAvailable?`<article class="card hub-panel"><h3>Weekly scoring</h3><div class="hub-bars">${points.map(w=>`<div class="hub-bar" title="Week ${w.week}: ${fmt(w.points)}"><small>${fmt(w.points)}</small><i style="height:${Math.round(w.points/max*100)}px"></i><span>W${w.week}</span></div>`).join('')}</div></article>`:'<p class="hub-empty">Completed standings unavailable; retrying after results are verified.</p>'}<h3>Week ${esc(week)} roster</h3>
-    ${ps.length?table(['Slot','Player','NFL','Week points','Season points','Bye'],slots.map(p=>`<tr><td>${badge(p.slot)}</td><td>${image(p.image)}${playerLink(p)}${badge(p.status,true)}<span class="hub-sub">${esc(p.position)}</span></td><td>${esc(p.nflTeam)}</td><td class="num">${fmt(p.points)}</td><td class="num">${fmt(season(p))}</td><td>${esc(p.bye||'—')}</td></tr>`).join('')):empty('This roster has not been imported yet.')}${note('rosters')}<p class="hub-sub">Week points follow the selected week. Season points are from the latest season snapshot.</p>`;
+    $('teamContent').innerHTML=metrics+(standingsAvailable?weeklyResults(points):'<p class="hub-empty">Completed standings unavailable; retrying after results are verified.</p>')+`<div class="team-roster-head"><h3>Week ${esc(week)} roster</h3><span>${ps.length} players</span></div><div class="team-roster">${ps.length?table(['Slot','Player','NFL','Week points','Season points','Bye'],slots.map(p=>`<tr><td>${badge(p.slot)}</td><td><div class="roster-player">${image(p.image)}<span>${playerLink(p)}${badge(p.status,true)}<small class="roster-position">${esc(p.position)}</small></span></div></td><td>${esc(p.nflTeam)}</td><td class="num">${fmt(p.points)}</td><td class="num">${fmt(season(p))}</td><td>${esc(p.bye||'—')}</td></tr>`).join('')):empty('This roster has not been imported yet.')}</div>${note('rosters')}<p class="hub-sub team-score-note">Week points follow the selected week. Season points use the latest snapshot.</p>`;
     wirePlayers($('teamContent'));
   }
-  $('teamPicker').onchange=renderTeam;$('rosterWeek').onchange=renderTeam;renderTeam();
+  $('teamDirectory').onclick=event=>{
+    const row=event.target.closest('tr[data-team-key]');if(!row)return;
+    selectedTeams[teamYear]=row.dataset.teamKey;
+    if(teamYear===currentSeason){favorite=row.dataset.teamKey;try{localStorage.setItem('scfl-favorite-team',favorite)}catch{}}
+    renderTeamDirectory();
+    if(event.detail===0)[...$('teamDirectory').querySelectorAll('button')].find(b=>b.dataset.selectTeam===selectedTeams[teamYear])?.focus({preventScroll:true});
+  };
+  $('teamYear').onchange=()=>{teamYear=$('teamYear').value;renderTeamDirectory()};
+  $('rosterWeek').onchange=renderTeam;
+  renderTeamDirectory();
   let pool=[];const seen=new Set();
   teams.forEach(t=>roster(t.key).forEach(p=>{pool.push({...p,owner:t.name,available:false,season:season(p)});seen.add(p.key)}));
   (hub.available||[]).forEach(p=>{if(!seen.has(p.key))pool.push({...p,owner:p.ownership==='waivers'?'Waivers':'Available',available:true,season:p.points})});

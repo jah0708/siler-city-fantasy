@@ -1,1 +1,1 @@
-{"private":true,"scripts":{"test:browser":"node tests/browser_smoke.cjs && node tests/matchup_geometry.cjs && node tests/standings_geometry.cjs && node tests/playoff_geometry.cjs"},"devDependencies":{"playwright":"1.62.1"}}
+{"private":true,"scripts":{"test:browser":"node tests/browser_smoke.cjs && node tests/matchup_geometry.cjs && node tests/standings_geometry.cjs && node tests/playoff_geometry.cjs && node tests/team_browser.cjs"},"devDependencies":{"playwright":"1.62.1"}}
