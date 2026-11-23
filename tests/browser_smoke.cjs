@@ -42,7 +42,7 @@ const assert=require('node:assert/strict');
  await openView('players');assert(await page.getByRole('link',{name:/Add or trade players on Yahoo/}).isVisible());await page.locator('#playerSearch').fill('Player 2-0');assert.equal(await page.locator('#playerResults tbody tr').count(),1);
  await page.locator('#playerResults [data-player]').click();await page.locator('#playerDialog[open]').waitFor();await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.locator('#playerSearch').fill('nobody xyz');assert.equal(await page.locator('#playerResults tbody tr').count(),0);
- await openView('teams');assert(await page.getByRole('link',{name:/Make roster moves on Yahoo/}).isVisible());await page.locator('#teamPicker').selectOption('t5');assert((await page.locator('#teamContent').textContent()).includes('Team 5'));await page.locator('#rosterWeek').selectOption('1');
+ await openView('teams');assert(await page.getByRole('link',{name:/Make roster moves on Yahoo/}).isVisible());await page.locator('#teamDirectory [data-select-team="t5"]').click();assert((await page.locator('#teamIdentity').textContent()).includes('Team 5'));await page.locator('#rosterWeek').selectOption('1');
  await openView('draft');await page.locator('#draftTeam').selectOption('t2');assert.equal(await page.locator('#draftPicks tbody tr').count(),1);
  await page.setViewportSize({width:390,height:844});await page.locator('[data-view="clubhouse"]').click();await page.screenshot({path:'test-results/clubhouse-mobile.png',fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'page must not overflow mobile');

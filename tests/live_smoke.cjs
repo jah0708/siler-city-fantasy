@@ -12,7 +12,7 @@ const assert=require('node:assert/strict');
   await page.route('**/api/league',route=>route.fulfill({json:db}));
   await page.goto('http://127.0.0.1:8766');
   await page.locator('#hubHome #allMatchups').waitFor();
-  assert.equal(await page.locator('#teamPicker option').count(),10);
+  assert.equal(await page.locator('#teamDirectory [data-select-team]').count(),10);
   const openView=async view=>{if(['teams','players','activity','draft','history'].includes(view))await page.locator('.nav-more > summary').click();await page.locator(`[data-view="${view}"]`).click()};
  for(const view of ['teams','players','activity','standings','matchups','playoffs','draft','history']){
    await openView(view);

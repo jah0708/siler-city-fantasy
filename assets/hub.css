@@ -361,3 +361,102 @@ footer{padding:20px 0 30px;border-top:1px solid var(--line)}
  #playoffBracket .playoff-finishes{padding-inline:14px}
  #playoffBracket>.playoff-games,#playoffBracket>.playoff-race{padding:18px 16px}
 }
+
+/* A compact team directory and season detail, scoped to the roster screen. */
+#teams{max-width:1400px;margin-inline:auto}
+#teams .section-head{margin-bottom:14px;align-items:center}
+#teams .section-head h2{font-size:1.8rem}
+#teams .section-head .eyebrow{margin-bottom:4px;font-size:.64rem}
+#teams .section-head>p{font-size:.76rem}
+.team-workspace{display:grid;grid-template-columns:350px minmax(0,1fr);gap:18px;align-items:start}
+.team-directory-panel{min-width:0;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.team-directory-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);background:#f7f9fc}
+.team-directory-head h3{margin:0;font:700 .9rem/1.3 system-ui}
+.team-directory-head label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.72rem;font-weight:650}
+.team-directory-head select{min-height:36px;border:1px solid #cfd5dd;border-radius:4px;padding:5px 8px;background:#fff;color:var(--ink);font:700 .76rem system-ui}
+.team-directory-scroll{overflow:auto;max-height:620px;scrollbar-width:thin;scrollbar-color:#8c9db2 #edf0f4}
+.team-picker-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.75rem;font-variant-numeric:tabular-nums}
+.team-picker-table thead th{position:sticky;top:0;z-index:1;background:#edf1f6;color:#52657f;padding:8px 7px;font-size:.59rem;font-weight:750;letter-spacing:.04em;text-transform:uppercase;text-align:left}
+.team-picker-table th:first-child{width:29px;text-align:center}
+.team-picker-table th:nth-child(3){width:57px;text-align:right}
+.team-picker-table th:nth-child(4){width:75px;text-align:right}
+.team-picker-table tbody th,.team-picker-table td{padding:8px 7px;border-bottom:1px solid #e6eaf0;line-height:1.35;text-align:left;font-weight:500}
+.team-picker-table tbody tr:last-child>*{border-bottom:0}
+.team-picker-table tbody td:first-child{text-align:center;color:var(--muted);font-size:.7rem}
+.team-picker-table tbody td:nth-last-child(-n+2){text-align:right;white-space:nowrap;font-size:.7rem}
+.team-picker-table button{display:block;width:100%;padding:2px 0;border:0;background:none;text-align:left;font:650 .76rem/1.4 system-ui;color:inherit;cursor:pointer;overflow-wrap:anywhere}
+.team-picker-table tbody tr{cursor:pointer}
+.team-picker-table tbody tr:hover>*{background:#f2f5f9}
+.team-picker-table tbody tr.is-selected>*{background:#e8eef6;color:#263a5a}
+.team-picker-table .is-selected td:first-child{box-shadow:inset 3px 0 var(--gold);font-weight:800}
+.team-picker-table .is-selected button{font-weight:850}
+.team-detail{min-width:0}
+.team-detail-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;min-height:48px}
+#teamIdentity{min-width:0}
+#teams .hub-team-title{gap:9px;margin:0}
+#teams .hub-team-title img{width:34px;height:34px;object-fit:cover;border-radius:4px}
+#teams .hub-team-title h3{font:700 1.3rem/1.25 Georgia,serif;overflow-wrap:anywhere}
+#teams .hub-team-title p{font-size:.72rem;line-height:1.4;margin:3px 0 0}
+#teamTools{flex:none;margin:0;gap:7px}
+#teamTools label{gap:4px;font-size:.65rem}
+#teamTools select{font-size:.76rem;min-height:36px;padding:5px 9px;border-radius:4px}
+#teamTools[hidden]{display:none}
+#teamContent .hub-metrics{margin-bottom:10px;grid-template-columns:repeat(4,minmax(0,1fr))}
+#teamContent .hub-metric{padding:8px 10px;min-width:0}
+#teamContent .hub-metric:first-child{padding-left:0}
+#teamContent .hub-metric small{font-size:.6rem;letter-spacing:.025em;line-height:1.5}
+#teamContent .hub-metric strong{font-size:1.15rem;line-height:1.3;margin:2px 0 0;overflow-wrap:anywhere}
+#teamContent .hub-metric span:empty{display:none}
+.team-weekly{margin:0 0 10px;border:1px solid #dce1e8;border-radius:5px;background:#fff;overflow:hidden}
+.team-weekly summary{display:flex;align-items:center;gap:8px;min-height:36px;padding:7px 10px;font-size:.74rem;font-weight:700;cursor:pointer;list-style:none;color:#3c5576}
+.team-weekly summary::-webkit-details-marker{display:none}
+.team-weekly summary:before{content:'▸';font-size:.65rem}
+.team-weekly[open] summary:before{content:'▾'}
+.team-weekly summary>span{margin-left:auto;color:var(--muted);font-size:.65rem;font-weight:450}
+#teams .team-weekly .hub-table th,#teams .team-weekly .hub-table td{padding:6px 10px;font-size:.72rem}
+#teams .team-weekly .hub-table tbody th{background:none;color:var(--ink);letter-spacing:0;text-transform:none}
+.team-roster-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0 7px}
+.team-roster-head h3{font-size:.86rem;margin:0;font-weight:750}
+.team-roster-head>span{font-size:.68rem;color:var(--muted)}
+.team-roster{border:1px solid #dce1e8;border-radius:5px;background:#fff;overflow:hidden}
+#teams .team-roster .hub-table{min-width:540px;font-size:.77rem}
+#teams .team-roster .hub-table th{font-size:.6rem;letter-spacing:.035em;white-space:nowrap}
+#teams .team-roster .hub-table td,#teams .team-roster .hub-table th{padding:6px 9px}
+#teams .team-roster .hub-table th:first-child{width:44px}
+#teams .team-roster .hub-table th:nth-child(3){width:52px}
+#teams .team-roster .hub-table th:nth-child(4),#teams .team-roster .hub-table th:nth-child(5){width:95px;text-align:right}
+#teams .team-roster .hub-table th:last-child{width:42px}
+#teams .team-roster .hub-table td.num{font-size:.76rem}
+.roster-player{display:flex;align-items:center;gap:7px;min-height:28px}
+#teams .roster-player .hub-portrait{width:26px;height:26px;margin:0}
+#teams .roster-player .hub-link{font-size:.78rem;font-weight:700;text-underline-offset:3px}
+.roster-position{margin-left:7px;font-size:.63rem;color:var(--muted)}
+#teams .team-score-note,#teamContent>.hub-sub{font-size:.67rem;line-height:1.45;margin:7px 0 0}
+.team-archive-note{margin:0 0 10px;padding:8px 10px;background:#f0f3f7;border-radius:4px;color:var(--muted);font-size:.74rem;line-height:1.5}
+@media(max-width:1100px){.team-workspace{grid-template-columns:310px minmax(0,1fr);gap:14px}.team-picker-table th:nth-child(4){width:68px}}
+@media(max-width:900px){
+ .team-workspace{grid-template-columns:1fr;gap:14px}
+ .team-directory-scroll{max-height:170px}
+ .team-directory-head{padding:8px 10px}
+ .team-picker-table button{min-height:28px}
+ #teams .hub-team-title h3{font-size:1.2rem}
+}
+@media(max-width:520px){
+ #teams .section-head{margin-bottom:12px}
+ #teams .section-head h2{font-size:1.55rem}
+ #teams .section-head>p{font-size:.7rem;margin-top:7px}
+ .team-directory-head select,#teamTools select{min-height:44px;font-size:.85rem}
+ .team-picker-table th:nth-child(4){width:72px}
+ .team-picker-table tbody th,.team-picker-table td{padding-block:6px}
+ .team-picker-table button{min-height:30px;font-size:.76rem}
+ #teamTools label{font-size:.68rem}
+ .team-detail-header{align-items:center;gap:8px;margin-bottom:8px}
+ #teams .hub-team-title h3{font-size:1.1rem}
+ #teams .hub-team-title img{display:none}
+ #teams .hub-team-title p{font-size:.68rem}
+ #teamContent .hub-metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px}
+ #teamContent .hub-metric{padding:6px 8px}
+ #teamContent .hub-metric:nth-child(odd){padding-left:0}
+ #teamContent .hub-metric strong{font-size:1.05rem}
+ .team-weekly summary{min-height:44px}
+}
