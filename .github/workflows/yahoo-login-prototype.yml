@@ -6,6 +6,8 @@ on:
       - 'prototypes/yahoo-login/**'
       - 'web/**'
       - 'assets/**'
+      - 'tests/**'
+      - 'package*.json'
       - 'scripts/export_login_snapshot.py'
       - '.github/workflows/yahoo-login-prototype.yml'
 permissions:
