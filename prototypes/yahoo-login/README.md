@@ -1,6 +1,6 @@
 # Siler City Yahoo member site
 
-Engineering changes follow [the root agent instructions](../../AGENTS.md), [the binding target and adoption record](../../docs/engineering/ADOPTION.md), and [code review and verification](../../docs/engineering/CODE_REVIEW.md). The historical directory/project name does not make this an unused prototype; it is the current member-site implementation. Preserve its access and data boundaries until a verified replacement is accepted.
+Engineering changes follow [the root agent instructions](../../AGENTS.md), [the engineering standard and adoption record](../../docs/engineering/ADOPTION.md), and [code review and verification](../../docs/engineering/CODE_REVIEW.md). The historical directory/project name does not make this an unused prototype; it is the current member-site implementation. Preserve its Vercel hosting, Yahoo access and encrypted-data boundaries. A language/framework refactor does not authorize an infrastructure migration; that needs a separate cost case and explicit owner decision.
 
 League URL: https://siler-city-login-trial.vercel.app/
 

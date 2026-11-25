@@ -14,6 +14,10 @@ For consequential work, an independent QA reviewer checks actual source, fixture
 
 An initial codebase audit is separate from PR review: pin a revision, trace importer/archive/export/member API/browser paths, report covered and unexamined areas, and rank evidence-backed fixes. Do not treat a clean PR review as certification of all existing code or create a giant artificial diff to obtain an audit.
 
+## Architecture and infrastructure decisions
+
+Review the code against demonstrated user outcomes, security, maintainability, contracts and operating cost. A language/framework change needs a documented benefit, compatible deployment and focused verification; a difference from the earlier C#/React/PostgreSQL reference architecture is not itself a defect. Preserve the current providers and concrete services listed in [adoption](ADOPTION.md). Before an infrastructure or billing-plan migration, compare the current setup with the proposed one, including recurring costs, free-tier limits, migration effort and recovery, and obtain the owner's explicit decision. This also applies to a service substitution within one provider. The review itself does not authorize a rewrite or migration.
+
 ## Current verification commands
 
 Use the current [root package](../../package.json), [member-site package](../../prototypes/yahoo-login/package.json) and workflows as command authority. The checked-in baseline uses Python 3.12 and Node 22 in CI.
@@ -26,11 +30,11 @@ Use the current [root package](../../package.json), [member-site package](../../
 | Member-site browser/auth interface | Build the member site, serve its `public` directory on 8767 and the synthetic preview on 8765, then from root run `node prototypes/yahoo-login/tests/browser.cjs` and `npm run test:browser`, as in the sign-in workflow. |
 | Documentation-only | Verify instructions against current scripts/workflows and check relative links and contradictions. Record checks skipped by path filters as not run, never passed. |
 
-The existing [update workflow](../../.github/workflows/update-yahoo.yml) contains `Unit tests and privacy checks`; [the sign-in workflow](../../.github/workflows/yahoo-login-prototype.yml) contains the `prototype` job. Both use path filters. Their absence on a docs-only PR is not evidence that runtime checks ran. Keep existing coverage while migrating; do not introduce another test framework to mirror a documentation change.
+The existing [update workflow](../../.github/workflows/update-yahoo.yml) contains `Unit tests and privacy checks`; [the sign-in workflow](../../.github/workflows/yahoo-login-prototype.yml) contains the `prototype` job. Both use path filters. Their absence on a docs-only PR is not evidence that runtime checks ran. Keep existing coverage when changing implementations; do not introduce another test framework to mirror a documentation change.
 
 ## Findings and merge evidence
 
-Each finding states severity, exact source location, triggering condition, expected/actual result, impact, confidence and smallest safe correction. Distinguish a reproduced defect from an uncertain concern and existing debt from new regressions. Leave formatting and mechanical checks to the existing tools. Do not use arbitrary file-length or coverage targets, or demand a rewrite solely because permitted legacy code remains.
+Each finding states severity, exact source location, triggering condition, expected/actual result, impact, confidence and smallest safe correction. Distinguish a reproduced defect from an uncertain concern and existing debt from new regressions. Leave formatting and mechanical checks to the existing tools. Do not use arbitrary file-length or coverage targets, or demand a rewrite solely because the supported current implementation differs from a reference stack.
 
 Resolve material findings within the authorized scope, rerun the affected checks and review the changed revision. Record any deferred issue and its impact. Verify applicable required CI and repository protections on the exact head being merged; AI review and written rules are not hard enforcement. A silent bot or reaction is not proof of full coverage.
 
