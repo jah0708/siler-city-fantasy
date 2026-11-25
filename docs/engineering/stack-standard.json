@@ -1,0 +1,67 @@
+{
+  "standard_id": "application-foundation",
+  "version": "2026.11.1",
+  "effective_date": "2026-11-24",
+  "status": "binding",
+  "architecture": "modular-monolith-per-product",
+  "same_origin_web_and_api": true,
+  "families": {
+    "backend_language": "C#",
+    "backend_framework": "ASP.NET Core",
+    "runtime_family": ".NET LTS",
+    "frontend_language": "TypeScript (strict)",
+    "frontend_framework": "React",
+    "frontend_build": "Vite",
+    "routing": "React Router",
+    "styling": "Tailwind CSS",
+    "accessible_primitives": "Radix",
+    "database": "PostgreSQL",
+    "orm": "Entity Framework Core + Npgsql",
+    "contracts": "OpenAPI + openapi-typescript/openapi-fetch",
+    "cloud": "Google Cloud",
+    "application_host": "Cloud Run",
+    "database_host": "Cloud SQL",
+    "task_delivery": "Cloud Tasks",
+    "scheduler": "Cloud Scheduler",
+    "batch_jobs": "Cloud Run Jobs",
+    "identity": "Identity Platform / Firebase Authentication",
+    "object_storage": "Cloud Storage",
+    "secrets": "Secret Manager",
+    "ci": "GitHub Actions",
+    "infrastructure": "Terraform"
+  },
+  "initial_major_baselines": {
+    "dotnet": "10",
+    "react": "19",
+    "vite": "8",
+    "tailwind": "4",
+    "postgresql": "18"
+  },
+  "governance": {
+    "new_apps_must_conform": true,
+    "agents_may_change_families": false,
+    "family_or_exception_changes_require_explicit_owner_direction": true,
+    "supported_security_maintenance_required": true,
+    "exact_dependency_lockfiles_required": true,
+    "existing_apps_require_verified_migrations": true
+  },
+  "platform_exceptions": [
+    "WordPress PHP boundary",
+    "WoW Lua boundary",
+    "Windows native C# and required PowerShell",
+    "Node/npm frontend and build tooling",
+    "Named legacy adapters pending verified migration",
+    "Skill and analysis utilities"
+  ],
+  "defaults_prohibited": [
+    "service-per-feature",
+    "separate frontend hosting without need",
+    "generic EF Core repositories",
+    "CQRS or event sourcing scaffolding",
+    "MediatR or AutoMapper by default",
+    "Redis without measured need",
+    "second general-purpose backend framework",
+    "duplicate business state owners",
+    "duplicate workflow producers"
+  ]
+}
