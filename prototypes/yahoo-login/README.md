@@ -1,5 +1,7 @@
 # Siler City Yahoo member site
 
+Engineering changes follow [the root agent instructions](../../AGENTS.md), [the binding target and adoption record](../../docs/engineering/ADOPTION.md), and [code review and verification](../../docs/engineering/CODE_REVIEW.md). The historical directory/project name does not make this an unused prototype; it is the current member-site implementation. Preserve its access and data boundaries until a verified replacement is accepted.
+
 League URL: https://siler-city-login-trial.vercel.app/
 
 Yahoo is the member site's only sign-in method. The hosting project retains its
