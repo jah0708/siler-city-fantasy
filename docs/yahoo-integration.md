@@ -4,7 +4,7 @@
 
 The member site is `https://siler-city-login-trial.vercel.app/`, implemented in [prototypes/yahoo-login](../prototypes/yahoo-login/README.md). Yahoo is the member sign-in method. The old GitHub Pages entrypoint redirects there; it does not provide a shared-password fallback. The historical trial names remain in the existing Vercel project and ciphertext branch to preserve working URLs and integrations.
 
-Read [AGENTS.md](../AGENTS.md), [the adoption record](engineering/ADOPTION.md) and [code review and verification](engineering/CODE_REVIEW.md) before changing this integration. Current Python/Node/Vercel components are documented migration baselines; new replacement work follows the binding application charter. Do not rotate credentials or launch live data writes as an incidental documentation or review task.
+Read [AGENTS.md](../AGENTS.md), [the adoption record](engineering/ADOPTION.md) and [code review and verification](engineering/CODE_REVIEW.md) before changing this integration. Current Python/Node/Vercel components remain supported. Language/framework changes need a documented benefit and compatible contracts; preserve the existing infrastructure unless a separate cost case and explicit owner decision approve a migration. Do not rotate credentials or launch live data writes as an incidental documentation or review task.
 
 ## Data flow and ownership
 

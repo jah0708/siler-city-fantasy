@@ -1,66 +1,70 @@
 {
   "standard_id": "application-foundation",
-  "version": "2026.11.1",
-  "effective_date": "2026-11-24",
-  "status": "binding",
-  "architecture": "modular-monolith-per-product",
-  "same_origin_web_and_api": true,
-  "families": {
-    "backend_language": "C#",
-    "backend_framework": "ASP.NET Core",
-    "runtime_family": ".NET LTS",
-    "frontend_language": "TypeScript (strict)",
-    "frontend_framework": "React",
-    "frontend_build": "Vite",
-    "routing": "React Router",
-    "styling": "Tailwind CSS",
-    "accessible_primitives": "Radix",
-    "database": "PostgreSQL",
-    "orm": "Entity Framework Core + Npgsql",
-    "contracts": "OpenAPI + openapi-typescript/openapi-fetch",
-    "cloud": "Google Cloud",
-    "application_host": "Cloud Run",
-    "database_host": "Cloud SQL",
-    "task_delivery": "Cloud Tasks",
-    "scheduler": "Cloud Scheduler",
-    "batch_jobs": "Cloud Run Jobs",
-    "identity": "Identity Platform / Firebase Authentication",
-    "object_storage": "Cloud Storage",
-    "secrets": "Secret Manager",
-    "ci": "GitHub Actions",
-    "infrastructure": "Terraform"
+  "schema_version": 2,
+  "version": "2026.11.2",
+  "effective_date": "2026-11-25",
+  "status": "binding-engineering-principles-infrastructure-preserved-software-reviewable",
+  "architecture_preference": "cohesive-modular-application-per-product",
+  "existing_topology": "preserve-unless-separately-justified-and-authorized",
+  "same_origin_web_and_api": "prefer-when-compatible-with-existing-host",
+  "software_selection": {
+    "existing_supported_stack_is_valid": true,
+    "language_and_framework_changes_allowed": true,
+    "within_authorized_task_scope": true,
+    "document_problem_alternatives_compatibility_and_cost": true,
+    "mandatory_rewrite": false,
+    "reference_options_are_not_migration_requirements": true,
+    "reference_options": [
+      "C# / supported .NET / ASP.NET Core",
+      "strict TypeScript / React",
+      "PostgreSQL when relational storage is selected",
+      "OpenAPI with generated clients when appropriate"
+    ],
+    "prefer_common_choices_across_apps_when_infrastructure_compatible": true,
+    "document_justified_differences": true
   },
-  "initial_major_baselines": {
-    "dotnet": "10",
-    "react": "19",
-    "vite": "8",
-    "tailwind": "4",
-    "postgresql": "18"
+  "infrastructure": {
+    "default": "retain-current-per-application-services-and-plans",
+    "scope": [
+      "hosting",
+      "database-service",
+      "identity-provider",
+      "object-storage",
+      "job-and-scheduling-services",
+      "secrets",
+      "observability",
+      "deployment-services",
+      "billing-plan"
+    ],
+    "same_provider_service_replacement_is_migration": true,
+    "migration_requires_cost_case": true,
+    "migration_requires_explicit_owner_decision": true,
+    "free_usage_must_be_verified_per_service_and_account": true,
+    "trial_credits_are_not_recurring_free_usage": true
   },
   "governance": {
-    "new_apps_must_conform": true,
-    "agents_may_change_families": false,
-    "family_or_exception_changes_require_explicit_owner_direction": true,
+    "engineering_principles_apply_to_new_and_existing_apps": true,
     "supported_security_maintenance_required": true,
     "exact_dependency_lockfiles_required": true,
-    "existing_apps_require_verified_migrations": true
+    "selected_migrations_require_verification_and_recovery": true,
+    "language_flexibility_does_not_authorize_infrastructure_change": true,
+    "unselected_migrations_are_proposals_not_obligations": true
   },
-  "platform_exceptions": [
-    "WordPress PHP boundary",
-    "WoW Lua boundary",
-    "Windows native C# and required PowerShell",
-    "Node/npm frontend and build tooling",
-    "Named legacy adapters pending verified migration",
-    "Skill and analysis utilities"
+  "platform_boundaries": [
+    "WordPress CMS and required PHP",
+    "WoW Lua/game client",
+    "native desktop implementation and packaging",
+    "existing supported backend and adapter runtimes",
+    "frontend and build tooling",
+    "skill and analysis utilities"
   ],
   "defaults_prohibited": [
     "service-per-feature",
-    "separate frontend hosting without need",
-    "generic EF Core repositories",
+    "new infrastructure solely for uniformity",
+    "speculative shared product database",
+    "pass-through repositories and wrappers",
     "CQRS or event sourcing scaffolding",
-    "MediatR or AutoMapper by default",
-    "Redis without measured need",
-    "second general-purpose backend framework",
+    "unmeasured caching or extra services",
     "duplicate business state owners",
     "duplicate workflow producers"
   ]
